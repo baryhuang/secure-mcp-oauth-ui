@@ -2,6 +2,16 @@
 
 A Next.js web application for managing OAuth integrations with support for MCP (Model Context Protocol) configuration export.
 
+<img width="1912" alt="image" src="https://github.com/user-attachments/assets/8936a935-4a5b-4441-a410-4ae48df31eba" />
+
+<img width="1915" alt="image" src="https://github.com/user-attachments/assets/09a9a253-0409-44fe-a820-13f27d989e54" />
+
+<img width="1918" alt="image" src="https://github.com/user-attachments/assets/ac8eb754-1ca8-426c-841b-957678005234" />
+
+
+
+
+
 ## Features
 
 - OAuth integration management
