@@ -17,6 +17,7 @@ import {
   SimpleGrid,
   useColorModeValue,
   Divider,
+  Link,
 } from '@chakra-ui/react';
 import { CheckCircleIcon, WarningIcon } from '@chakra-ui/icons';
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -333,25 +334,37 @@ export default function Home() {
                     <Box>
                       <Heading size="lg" mb={4}>{integration.name}</Heading>
                       <Text fontSize="lg" color="gray.600" mb={4}>{integration.description}</Text>
-                      <Badge
-                        fontSize="md"
-                        colorScheme={integration.isConnected ? 'green' : 'gray'}
-                        rounded="full"
-                        px={4}
-                        py={2}
-                      >
-                        {integration.isConnected ? (
-                          <HStack spacing={2}>
-                            <CheckCircleIcon />
-                            <Text>Connected</Text>
-                          </HStack>
-                        ) : (
-                          <HStack spacing={2}>
-                            <WarningIcon />
-                            <Text>Not Connected</Text>
-                          </HStack>
-                        )}
-                      </Badge>
+                      <HStack spacing={4}>
+                        <Badge
+                          fontSize="md"
+                          colorScheme={integration.isConnected ? 'green' : 'gray'}
+                          rounded="full"
+                          px={4}
+                          py={2}
+                        >
+                          {integration.isConnected ? (
+                            <HStack spacing={2}>
+                              <CheckCircleIcon />
+                              <Text>Connected</Text>
+                            </HStack>
+                          ) : (
+                            <HStack spacing={2}>
+                              <WarningIcon />
+                              <Text>Not Connected</Text>
+                            </HStack>
+                          )}
+                        </Badge>
+                        <Link href="/config/google" _hover={{ textDecoration: 'none' }}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            colorScheme="gray"
+                            rounded="full"
+                          >
+                            Configure
+                          </Button>
+                        </Link>
+                      </HStack>
                     </Box>
                     <Button
                       colorScheme={integration.isConnected ? 'red' : 'blue'}
