@@ -330,8 +330,41 @@ export default function Home() {
       }
     } else if (integration.name === 'Sketchfab') {
       if (!integration.isConnected) {
-        // Redirect to the Sketchfab integration page
-        window.location.href = '/integrations/sketchfab';
+        // Initiate Sketchfab OAuth flow directly
+        try {
+          toast({
+            title: 'Connecting to Sketchfab',
+            description: 'Initializing authentication...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+          
+          // Call backend to get OAuth URL
+          const response = await fetch('http://localhost:8000/api/oauth/authorize/sketchfab');
+          
+          if (!response.ok) {
+            throw new Error('Failed to initiate Sketchfab authentication');
+          }
+          
+          const data = await response.json();
+          
+          // Redirect to Sketchfab authorization page
+          if (data.authorization_url) {
+            window.location.href = data.authorization_url;
+          } else {
+            throw new Error('No authorization URL received');
+          }
+        } catch (error) {
+          console.error('Error initiating Sketchfab auth:', error);
+          toast({
+            title: 'Connection Failed',
+            description: 'Failed to connect to Sketchfab',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       } else {
         // Disconnect Sketchfab
         const localStorageKeys = Object.keys(localStorage);

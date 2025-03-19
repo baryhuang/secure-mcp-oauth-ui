@@ -8,8 +8,6 @@ const Navigation = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   
-  const isActive = (path: string) => router.pathname === path;
-  
   return (
     <Box
       as="nav"
@@ -35,34 +33,6 @@ const Navigation = () => {
             Secure MCP OAuth
           </ChakraLink>
         </NextLink>
-        
-        <HStack spacing={4}>
-          <NextLink href="/" legacyBehavior>
-            <ChakraLink
-              px={3}
-              py={2}
-              rounded="md"
-              fontWeight={isActive('/') ? 'semibold' : 'normal'}
-              color={isActive('/') ? 'blue.500' : undefined}
-              _hover={{ textDecoration: 'none', bg: 'gray.100' }}
-            >
-              Home
-            </ChakraLink>
-          </NextLink>
-          
-          <NextLink href="/integrations/sketchfab" legacyBehavior>
-            <ChakraLink
-              px={3}
-              py={2}
-              rounded="md"
-              fontWeight={isActive('/integrations/sketchfab') ? 'semibold' : 'normal'}
-              color={isActive('/integrations/sketchfab') ? 'blue.500' : undefined}
-              _hover={{ textDecoration: 'none', bg: 'gray.100' }}
-            >
-              Sketchfab
-            </ChakraLink>
-          </NextLink>
-        </HStack>
       </Flex>
     </Box>
   );

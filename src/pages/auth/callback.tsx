@@ -53,10 +53,7 @@ const OAuthCallback = () => {
         }
         
         // Redirect back to the appropriate page
-        let redirectPath = '/';
-        if (provider === 'sketchfab') {
-          redirectPath = '/integrations/sketchfab';
-        }
+        const redirectPath = '/';
         
         router.push({
           pathname: redirectPath,
