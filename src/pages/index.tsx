@@ -27,6 +27,7 @@ import {
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
 import NextLink from 'next/link';
+import { authorizeSketchfab } from '../lib/api';
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -272,21 +273,9 @@ export default function Home() {
             isClosable: true,
           });
           
-          // Call backend to get OAuth URL
-          const response = await fetch('http://localhost:8000/api/oauth/authorize/sketchfab');
+          // Directly call the Sketchfab authorization function
+          authorizeSketchfab();
           
-          if (!response.ok) {
-            throw new Error('Failed to initiate Sketchfab authentication');
-          }
-          
-          const data = await response.json();
-          
-          // Redirect to Sketchfab authorization page
-          if (data.authorization_url) {
-            window.location.href = data.authorization_url;
-          } else {
-            throw new Error('No authorization URL received');
-          }
         } catch (error) {
           console.error('Error initiating Sketchfab auth:', error);
           toast({
