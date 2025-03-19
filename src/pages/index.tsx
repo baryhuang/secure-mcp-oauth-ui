@@ -428,113 +428,6 @@ export default function Home() {
 
   return (
     <Box bg={bgColor} minH="100vh" overflow="hidden">
-      {/* Hero Section */}
-      <Box
-        position="relative"
-        height="100vh"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        overflow="hidden"
-        _before={{
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)',
-          opacity: 0.9,
-          zIndex: 0,
-        }}
-      >
-        <Container maxW="container.xl" position="relative" zIndex={1}>
-          <VStack spacing={8} textAlign="center">
-            <Heading
-              fontSize={{ base: '4xl', md: '7xl' }}
-              fontWeight="bold"
-              color="white"
-              lineHeight="shorter"
-              letterSpacing="tight"
-              sx={{
-                opacity: 0,
-                animation: '1s ease-out forwards slideFadeIn',
-                '@keyframes slideFadeIn': {
-                  '0%': {
-                    opacity: 0,
-                    transform: 'translateY(20px)',
-                  },
-                  '100%': {
-                    opacity: 1,
-                    transform: 'translateY(0)',
-                  },
-                },
-              }}
-            >
-              Secure OAuth
-              <br />
-              Integration Hub
-            </Heading>
-            <Text
-              fontSize={{ base: 'xl', md: '2xl' }}
-              color="gray.300"
-              maxW="3xl"
-              sx={{
-                opacity: 0,
-                animation: '1s ease-out 0.2s forwards slideFadeIn',
-              }}
-            >
-              Enterprise-grade authentication management.
-              <br />
-              Designed for the modern web.
-            </Text>
-            <Button
-              size="lg"
-              fontSize="xl"
-              px={12}
-              py={8}
-              bg="white"
-              color="black"
-              _hover={{ bg: 'gray.100' }}
-              rounded="full"
-              onClick={() => window.location.href = '#integrations'}
-              sx={{
-                opacity: 0,
-                animation: '1s ease-out 0.4s forwards slideFadeIn',
-              }}
-            >
-              Get Started
-            </Button>
-          </VStack>
-        </Container>
-      </Box>
-
-      {/* Features Section */}
-      <Box py={32} bg="black" position="relative">
-        <Container maxW="container.xl">
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={16}>
-            <Feature
-              icon={FiLock}
-              title="Secure Authentication"
-              text="Enterprise-grade OAuth 2.0 implementation with industry-standard security"
-              delay={0}
-            />
-            <Feature
-              icon={FiRefreshCcw}
-              title="MCP Compatible"
-              text="Built on the Model Context Protocol for seamless integration"
-              delay={0.2}
-            />
-            <Feature
-              icon={FiShield}
-              title="Token Management"
-              text="Automatic token refresh and secure credential storage"
-              delay={0.4}
-            />
-          </SimpleGrid>
-        </Container>
-      </Box>
-
       {/* Integrations Section */}
       <Box 
         bg="white" 
@@ -679,6 +572,113 @@ export default function Home() {
               Export MCP Config
             </Button>
           </Box>
+        </Container>
+      </Box>
+
+      {/* Hero Section */}
+      <Box
+        position="relative"
+        height="100vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        overflow="hidden"
+        _before={{
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)',
+          opacity: 0.9,
+          zIndex: 0,
+        }}
+      >
+        <Container maxW="container.xl" position="relative" zIndex={1}>
+          <VStack spacing={8} textAlign="center">
+            <Heading
+              fontSize={{ base: '4xl', md: '7xl' }}
+              fontWeight="bold"
+              color="white"
+              lineHeight="shorter"
+              letterSpacing="tight"
+              sx={{
+                opacity: 0,
+                animation: '1s ease-out forwards slideFadeIn',
+                '@keyframes slideFadeIn': {
+                  '0%': {
+                    opacity: 0,
+                    transform: 'translateY(20px)',
+                  },
+                  '100%': {
+                    opacity: 1,
+                    transform: 'translateY(0)',
+                  },
+                },
+              }}
+            >
+              Secure OAuth
+              <br />
+              Integration Hub
+            </Heading>
+            <Text
+              fontSize={{ base: 'xl', md: '2xl' }}
+              color="gray.300"
+              maxW="3xl"
+              sx={{
+                opacity: 0,
+                animation: '1s ease-out 0.2s forwards slideFadeIn',
+              }}
+            >
+              Enterprise-grade authentication management.
+              <br />
+              Designed for the modern web.
+            </Text>
+            <Button
+              size="lg"
+              fontSize="xl"
+              px={12}
+              py={8}
+              bg="white"
+              color="black"
+              _hover={{ bg: 'gray.100' }}
+              rounded="full"
+              onClick={() => window.location.href = '#features'}
+              sx={{
+                opacity: 0,
+                animation: '1s ease-out 0.4s forwards slideFadeIn',
+              }}
+            >
+              Learn More
+            </Button>
+          </VStack>
+        </Container>
+      </Box>
+
+      {/* Features Section */}
+      <Box py={32} bg="black" position="relative" id="features">
+        <Container maxW="container.xl">
+          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={16}>
+            <Feature
+              icon={FiLock}
+              title="Secure Authentication"
+              text="Enterprise-grade OAuth 2.0 implementation with industry-standard security"
+              delay={0}
+            />
+            <Feature
+              icon={FiRefreshCcw}
+              title="MCP Compatible"
+              text="Built on the Model Context Protocol for seamless integration"
+              delay={0.2}
+            />
+            <Feature
+              icon={FiShield}
+              title="Token Management"
+              text="Automatic token refresh and secure credential storage"
+              delay={0.4}
+            />
+          </SimpleGrid>
         </Container>
       </Box>
     </Box>
