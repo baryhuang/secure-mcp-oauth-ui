@@ -25,17 +25,8 @@ import {
   Collapse,
 } from '@chakra-ui/react';
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
-import { useSession, signIn, signOut } from 'next-auth/react';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
-import { Session } from 'next-auth';
 import NextLink from 'next/link';
-
-// Augment the Session type to include accessToken
-declare module 'next-auth' {
-  interface Session {
-    accessToken?: string;
-  }
-}
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -120,14 +111,7 @@ const Feature = ({ title, text, icon, delay }: FeatureProps) => {
 };
 
 export default function Home() {
-  const { data: session } = useSession();
   const [integrations, setIntegrations] = useState<Integration[]>([
-    {
-      name: 'Google Drive',
-      isConnected: false,
-      description: 'Connect to access and manage your Google Drive files',
-      scope: 'https://www.googleapis.com/auth/drive.file',
-    },
     {
       name: 'Sketchfab',
       isConnected: false,
@@ -257,40 +241,6 @@ export default function Home() {
     checkStoredTokens();
   }, []);
 
-  useEffect(() => {
-    if (session?.accessToken) {
-      setIntegrations(prev => 
-        prev.map(int => ({
-          ...int,
-          isConnected: int.name === 'Google Drive'
-        }))
-      );
-      
-      // Store Google token data for display
-      setTokenData(prev => ({
-        ...prev,
-        'Google Drive': { 
-          access_token: session.accessToken,
-          token_type: 'Bearer'
-        }
-      }));
-    } else {
-      setIntegrations(prev => 
-        prev.map(int => ({
-          ...int,
-          isConnected: int.name === 'Google Drive' ? false : int.isConnected
-        }))
-      );
-      
-      // Remove Google token data if disconnected
-      setTokenData(prev => {
-        const newTokenData = { ...prev };
-        delete newTokenData['Google Drive'];
-        return newTokenData;
-      });
-    }
-  }, [session]);
-
   const handleToggleToken = (integrationName: string) => {
     setShowTokens(prev => ({
       ...prev,
@@ -310,25 +260,7 @@ export default function Home() {
   };
 
   const handleConnect = async (integration: Integration) => {
-    if (integration.name === 'Google Drive') {
-      if (!integration.isConnected) {
-        try {
-          await signIn('google', {
-            callbackUrl: window.location.origin,
-          });
-        } catch (error) {
-          toast({
-            title: 'Connection Failed',
-            description: 'Failed to connect to Google Drive',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      } else {
-        await signOut({ callbackUrl: window.location.origin });
-      }
-    } else if (integration.name === 'Sketchfab') {
+    if (integration.name === 'Sketchfab') {
       if (!integration.isConnected) {
         // Initiate Sketchfab OAuth flow directly
         try {
@@ -410,7 +342,9 @@ export default function Home() {
         name: int.name,
         status: int.isConnected ? 'connected' : 'disconnected',
         scope: int.scope,
-        accessToken: int.isConnected ? session?.accessToken : null,
+        accessToken: int.isConnected && tokenData[int.name]?.access_token 
+          ? tokenData[int.name].access_token 
+          : null,
       })),
     };
 
