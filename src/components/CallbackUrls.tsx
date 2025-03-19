@@ -6,7 +6,7 @@ export default function CallbackUrls() {
 
   useEffect(() => {
     setUrls([
-      'http://localhost:3000/api/auth/callback/google',
+      'http://localhost:5173/api/auth/callback/google',
       `${window.location.origin}/api/auth/callback/google`,
     ]);
   }, []);

@@ -315,7 +315,7 @@ export default function Home() {
             fontSize={{ base: '3xl', md: '5xl' }}
             fontWeight="bold"
           >
-            Available Integrations
+            Integrations
           </Heading>
           <VStack spacing={8} align="stretch">
             {integrations.map((integration) => (
