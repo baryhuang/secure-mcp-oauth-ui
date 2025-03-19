@@ -1,6 +1,7 @@
 import type { AppProps } from 'next/app';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ChakraProvider, extendTheme, Box } from '@chakra-ui/react';
 import { SessionProvider } from 'next-auth/react';
+import Navigation from '../components/Navigation';
 
 const theme = extendTheme({
   styles: {
@@ -16,7 +17,10 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
   return (
     <SessionProvider session={session}>
       <ChakraProvider theme={theme}>
-        <Component {...pageProps} />
+        <Navigation />
+        <Box pt="16">
+          <Component {...pageProps} />
+        </Box>
       </ChakraProvider>
     </SessionProvider>
   );

@@ -8,6 +8,9 @@ export interface ProviderConfigs {
   [provider: string]: OAuthProviderConfig;
 }
 
+// Default provider configurations
+export const defaultProviders: string[] = ['github', 'google', 'sketchfab'];
+
 const CONFIG_KEY = 'oauth_provider_configs';
 
 const isBrowser = typeof window !== 'undefined';

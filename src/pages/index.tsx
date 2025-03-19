@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
@@ -18,10 +18,24 @@ import {
   useColorModeValue,
   Divider,
   Link,
+  Input,
+  InputGroup,
+  InputRightElement,
+  IconButton,
+  Collapse,
 } from '@chakra-ui/react';
-import { CheckCircleIcon, WarningIcon } from '@chakra-ui/icons';
+import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
+import { Session } from 'next-auth';
+import NextLink from 'next/link';
+
+// Augment the Session type to include accessToken
+declare module 'next-auth' {
+  interface Session {
+    accessToken?: string;
+  }
+}
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -114,10 +128,134 @@ export default function Home() {
       description: 'Connect to access and manage your Google Drive files',
       scope: 'https://www.googleapis.com/auth/drive.file',
     },
+    {
+      name: 'Sketchfab',
+      isConnected: false,
+      description: 'Connect to access your Sketchfab 3D models',
+      scope: 'read',
+    },
   ]);
+  const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
+  const [tokenData, setTokenData] = useState<Record<string, any>>({});
   const toast = useToast();
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)');
+
+  // Handle OAuth callback with code parameter
+  useEffect(() => {
+    const handleSketchfabCallback = async () => {
+      // Check if URL has code parameter (OAuth callback)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code) {
+        try {
+          console.log('Processing Sketchfab OAuth callback with code:', code);
+          toast({
+            title: 'Processing Authentication',
+            description: 'Completing Sketchfab authentication...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+          
+          // Call backend to exchange code for token
+          const response = await fetch(`http://localhost:8000/api/oauth/callback/sketchfab?code=${code}`);
+          
+          if (!response.ok) {
+            throw new Error('Failed to exchange code for token');
+          }
+          
+          const tokenData = await response.json();
+          console.log('Token received:', tokenData);
+          
+          // Store token data
+          if (tokenData.user_id) {
+            localStorage.setItem(
+              `oauth_token_sketchfab_${tokenData.user_id}`,
+              JSON.stringify(tokenData)
+            );
+            
+            // Get user info
+            const userResponse = await fetch(
+              `http://localhost:8000/api/oauth/me/sketchfab?user_id=${tokenData.user_id}`
+            );
+            
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              localStorage.setItem(
+                `oauth_user_sketchfab_${tokenData.user_id}`,
+                JSON.stringify(userData)
+              );
+            }
+            
+            // Update integrations state
+            setIntegrations(prev => 
+              prev.map(int => ({
+                ...int,
+                isConnected: int.name === 'Sketchfab' ? true : int.isConnected
+              }))
+            );
+            
+            toast({
+              title: 'Authentication Successful',
+              description: 'Connected to Sketchfab successfully',
+              status: 'success',
+              duration: 5000,
+              isClosable: true,
+            });
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (error) {
+          console.error('Error processing Sketchfab callback:', error);
+          toast({
+            title: 'Authentication Error',
+            description: 'Failed to complete Sketchfab authentication',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+    };
+    
+    handleSketchfabCallback();
+  }, [toast]);
+
+  useEffect(() => {
+    // Check localStorage for tokens on initial load
+    const checkStoredTokens = () => {
+      const localStorageKeys = Object.keys(localStorage);
+      const sketchfabTokenKey = localStorageKeys.find(key => key.startsWith('oauth_token_sketchfab_'));
+      
+      // Update Sketchfab connection status based on localStorage
+      if (sketchfabTokenKey) {
+        try {
+          const tokenData = JSON.parse(localStorage.getItem(sketchfabTokenKey) || '{}');
+          if (tokenData.token_info?.access_token) {
+            setIntegrations(prev => 
+              prev.map(int => ({
+                ...int,
+                isConnected: int.name === 'Sketchfab' ? true : int.isConnected
+              }))
+            );
+            
+            // Store token data for display
+            setTokenData(prev => ({
+              ...prev,
+              'Sketchfab': tokenData.token_info
+            }));
+          }
+        } catch (error) {
+          console.error('Error parsing Sketchfab token from localStorage:', error);
+        }
+      }
+    };
+    
+    checkStoredTokens();
+  }, []);
 
   useEffect(() => {
     if (session?.accessToken) {
@@ -127,15 +265,49 @@ export default function Home() {
           isConnected: int.name === 'Google Drive'
         }))
       );
+      
+      // Store Google token data for display
+      setTokenData(prev => ({
+        ...prev,
+        'Google Drive': { 
+          access_token: session.accessToken,
+          token_type: 'Bearer'
+        }
+      }));
     } else {
       setIntegrations(prev => 
         prev.map(int => ({
           ...int,
-          isConnected: false
+          isConnected: int.name === 'Google Drive' ? false : int.isConnected
         }))
       );
+      
+      // Remove Google token data if disconnected
+      setTokenData(prev => {
+        const newTokenData = { ...prev };
+        delete newTokenData['Google Drive'];
+        return newTokenData;
+      });
     }
   }, [session]);
+
+  const handleToggleToken = (integrationName: string) => {
+    setShowTokens(prev => ({
+      ...prev,
+      [integrationName]: !prev[integrationName]
+    }));
+  };
+
+  const handleCopyToken = (token: string) => {
+    navigator.clipboard.writeText(token);
+    toast({
+      title: 'Token Copied',
+      description: 'Access token has been copied to clipboard',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
 
   const handleConnect = async (integration: Integration) => {
     if (integration.name === 'Google Drive') {
@@ -155,6 +327,45 @@ export default function Home() {
         }
       } else {
         await signOut({ callbackUrl: window.location.origin });
+      }
+    } else if (integration.name === 'Sketchfab') {
+      if (!integration.isConnected) {
+        // Redirect to the Sketchfab integration page
+        window.location.href = '/integrations/sketchfab';
+      } else {
+        // Disconnect Sketchfab
+        const localStorageKeys = Object.keys(localStorage);
+        const sketchfabTokenKeys = localStorageKeys.filter(key => 
+          key.startsWith('oauth_token_sketchfab_') || 
+          key.startsWith('oauth_user_sketchfab_') || 
+          key === 'sketchfab_direct_auth_response'
+        );
+        
+        // Remove all Sketchfab tokens from localStorage
+        sketchfabTokenKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Update state
+        setIntegrations(prev => 
+          prev.map(int => ({
+            ...int,
+            isConnected: int.name === 'Sketchfab' ? false : int.isConnected
+          }))
+        );
+        
+        // Remove from tokenData
+        setTokenData(prev => {
+          const newTokenData = { ...prev };
+          delete newTokenData['Sketchfab'];
+          return newTokenData;
+        });
+        
+        toast({
+          title: 'Disconnected',
+          description: 'Successfully disconnected from Sketchfab',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
       }
     }
   };
@@ -354,36 +565,61 @@ export default function Home() {
                             </HStack>
                           )}
                         </Badge>
-                        <Link href="/config/google" _hover={{ textDecoration: 'none' }}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            colorScheme="gray"
-                            rounded="full"
-                          >
-                            Configure
-                          </Button>
-                        </Link>
                       </HStack>
                     </Box>
-                    <Button
-                      colorScheme={integration.isConnected ? 'red' : 'blue'}
-                      size="lg"
-                      fontSize="lg"
-                      px={8}
-                      py={6}
-                      onClick={() => handleConnect(integration)}
-                      rounded="full"
-                      bgGradient={integration.isConnected 
-                        ? 'linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%)'
-                        : 'linear-gradient(135deg, #0077FF 0%, #00C6FF 100%)'}
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                        shadow: 'lg',
-                      }}
-                    >
-                      {integration.isConnected ? 'Disconnect' : 'Connect'}
-                    </Button>
+                    <VStack spacing={4} align="flex-end">
+                      {integration.isConnected && tokenData[integration.name]?.access_token && (
+                        <Box width="280px" mb={2}>
+                          <Text fontSize="sm" fontWeight="bold" mb={1}>Access Token:</Text>
+                          <InputGroup size="sm">
+                            <Input 
+                              value={showTokens[integration.name] 
+                                ? tokenData[integration.name].access_token 
+                                : tokenData[integration.name].access_token.replace(/./g, '*')}
+                              isReadOnly
+                              pr="4.5rem"
+                              fontFamily="mono"
+                            />
+                            <InputRightElement width="4.5rem">
+                              <HStack spacing={1}>
+                                <IconButton
+                                  h="1.5rem"
+                                  size="sm"
+                                  aria-label={showTokens[integration.name] ? "Hide token" : "Show token"}
+                                  icon={showTokens[integration.name] ? <ViewOffIcon /> : <ViewIcon />}
+                                  onClick={() => handleToggleToken(integration.name)}
+                                />
+                                <IconButton
+                                  h="1.5rem"
+                                  size="sm"
+                                  aria-label="Copy token"
+                                  icon={<CopyIcon />}
+                                  onClick={() => handleCopyToken(tokenData[integration.name].access_token)}
+                                />
+                              </HStack>
+                            </InputRightElement>
+                          </InputGroup>
+                        </Box>
+                      )}
+                      <Button
+                        colorScheme={integration.isConnected ? 'red' : 'blue'}
+                        size="lg"
+                        fontSize="lg"
+                        px={8}
+                        py={6}
+                        onClick={() => handleConnect(integration)}
+                        rounded="full"
+                        bgGradient={integration.isConnected 
+                          ? 'linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%)'
+                          : 'linear-gradient(135deg, #0077FF 0%, #00C6FF 100%)'}
+                        _hover={{
+                          transform: 'translateY(-2px)',
+                          shadow: 'lg',
+                        }}
+                      >
+                        {integration.isConnected ? 'Disconnect' : 'Connect'}
+                      </Button>
+                    </VStack>
                   </Flex>
                 </CardBody>
               </Card>
