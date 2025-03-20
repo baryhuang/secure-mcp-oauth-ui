@@ -569,15 +569,7 @@ export default function Home() {
         }}
       >
         <Container maxW="container.xl" position="relative" zIndex={1}>
-          <Heading 
-            mb={20} 
-            textAlign="center" 
-            fontSize={{ base: '3xl', md: '5xl' }}
-            fontWeight="bold"
-          >
-            Integrations
-          </Heading>
-          <VStack spacing={8} align="stretch">
+          <Flex justify="center" wrap="wrap" gap={8}>
             {integrations.map((integration) => (
               <Card
                 key={integration.name}
@@ -588,111 +580,173 @@ export default function Home() {
                 shadow="xl"
                 transition="all 0.3s ease"
                 _hover={{ transform: 'scale(1.02)' }}
+                width={{ base: "100%", md: "350px" }}
+                height={{ base: "370px", md: "370px" }}
+                mx="auto"
               >
-                <CardBody p={8}>
-                  <Flex justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Heading size="lg" mb={4}>{integration.name}</Heading>
-                      <Text fontSize="lg" color="gray.600" mb={4}>{integration.description}</Text>
-                      <HStack spacing={4}>
+                <CardBody p={0} overflow="hidden">
+                  <VStack h="100%" spacing={0}>
+                    {/* Header Area */}
+                    <Box 
+                      w="100%" 
+                      bgGradient={integration.isConnected 
+                        ? 'linear-gradient(135deg, #0077FF 0%, #00C6FF 100%)'
+                        : 'linear-gradient(135deg, #4A5568 0%, #2D3748 100%)'}
+                      p={5}
+                      color="white"
+                    >
+                      <Flex justify="space-between" align="center">
+                        <Heading size="md">{integration.name}</Heading>
                         <Badge
-                          fontSize="md"
+                          fontSize="xs"
                           colorScheme={integration.isConnected ? 'green' : 'gray'}
+                          bg={integration.isConnected ? 'green.100' : 'gray.100'}
+                          color={integration.isConnected ? 'green.800' : 'gray.800'}
                           rounded="full"
-                          px={4}
-                          py={2}
+                          px={3}
+                          py={1}
                         >
                           {integration.isConnected ? (
-                            <HStack spacing={2}>
-                              <CheckCircleIcon />
+                            <HStack spacing={1}>
+                              <CheckCircleIcon boxSize="0.8em" />
                               <Text>Connected</Text>
                             </HStack>
                           ) : (
-                            <HStack spacing={2}>
-                              <WarningIcon />
+                            <HStack spacing={1}>
+                              <WarningIcon boxSize="0.8em" />
                               <Text>Not Connected</Text>
                             </HStack>
                           )}
                         </Badge>
-                      </HStack>
+                      </Flex>
+                      <Text fontSize="sm" mt={1} opacity={0.9}>{integration.description}</Text>
+                      <Text fontSize="xs" mt={2} opacity={0.7}>Scope: {integration.scope}</Text>
                     </Box>
-                    <VStack spacing={4} align="flex-end">
-                      {integration.isConnected && tokenData[integration.name]?.access_token && (
-                        <Box width="320px" mb={2}>
-                          <Text fontSize="sm" fontWeight="bold" mb={1}>Access Token:</Text>
-                          <InputGroup size="sm" mb={2}>
-                            <Input 
-                              value={showTokens[integration.name] 
-                                ? tokenData[integration.name].access_token 
-                                : tokenData[integration.name].access_token.replace(/./g, '*')}
-                              isReadOnly
-                              pr="4.5rem"
-                              fontFamily="mono"
-                            />
-                            <InputRightElement width="4.5rem">
+                    
+                    {/* Content Area */}
+                    <Box 
+                      w="100%" 
+                      p={5} 
+                      flex="1"
+                      bg={useColorModeValue('white', 'gray.700')}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      height="200px"
+                    >
+                      {integration.isConnected && tokenData[integration.name]?.access_token ? (
+                        <VStack spacing={2} align="stretch" w="100%">
+                          <Box width="100%">
+                            <Flex justify="space-between" align="center" mb={1}>
+                              <Text fontSize="xs" fontWeight="medium">Access Token:</Text>
                               <HStack spacing={1}>
                                 <IconButton
-                                  h="1.5rem"
-                                  size="sm"
+                                  h="1.2rem"
+                                  size="xs"
                                   aria-label={showTokens[integration.name] ? "Hide token" : "Show token"}
                                   icon={showTokens[integration.name] ? <ViewOffIcon /> : <ViewIcon />}
                                   onClick={() => handleToggleToken(integration.name)}
                                 />
                                 <IconButton
-                                  h="1.5rem"
-                                  size="sm"
+                                  h="1.2rem"
+                                  size="xs"
                                   aria-label="Copy token"
                                   icon={<CopyIcon />}
                                   onClick={() => handleCopyToken(tokenData[integration.name].access_token)}
                                 />
                               </HStack>
-                            </InputRightElement>
-                          </InputGroup>
-                          
-                          {tokenData[integration.name].expires_in && (
-                            <Text fontSize="xs" color="gray.500" mb={2}>
-                              Expires in: {tokenData[integration.name].expires_in} seconds
+                            </Flex>
+                            
+                            <Text 
+                              fontSize="xs" 
+                              fontFamily="mono" 
+                              p={2} 
+                              bg={useColorModeValue("gray.50", "gray.800")} 
+                              borderRadius="md"
+                              wordBreak="break-all"
+                              mb={2}
+                              maxH="40px"
+                              overflow="hidden"
+                              textOverflow="ellipsis"
+                            >
+                              {showTokens[integration.name] 
+                                ? `${tokenData[integration.name].access_token.substring(0, 40)}...` 
+                                : `${tokenData[integration.name].access_token.substring(0, 10).replace(/./g, '*')}...`}
                             </Text>
-                          )}
-                          
-                          {tokenData[integration.name].refresh_token && (
-                            <>
-                              <Text fontSize="sm" fontWeight="bold" mb={1}>Refresh Token:</Text>
-                              <InputGroup size="sm">
-                                <Input 
-                                  value={showTokens[integration.name] 
-                                    ? tokenData[integration.name].refresh_token 
-                                    : tokenData[integration.name].refresh_token.replace(/./g, '*')}
-                                  isReadOnly
-                                  pr="4.5rem"
-                                  fontFamily="mono"
-                                />
-                                <InputRightElement width="4.5rem">
-                                  <HStack spacing={1}>
-                                    <IconButton
-                                      h="1.5rem"
-                                      size="sm"
-                                      aria-label="Copy token"
-                                      icon={<CopyIcon />}
-                                      onClick={() => handleCopyToken(tokenData[integration.name].refresh_token)}
-                                    />
-                                  </HStack>
-                                </InputRightElement>
-                              </InputGroup>
-                            </>
-                          )}
-                          
-                          <Text fontSize="xs" color="gray.500" mt={2}>
-                            Token Type: {tokenData[integration.name].token_type || 'Bearer'}
+                            
+                            {tokenData[integration.name].expires_in && (
+                              <Text fontSize="2xs" color="gray.500">
+                                Expires in: {tokenData[integration.name].expires_in} seconds
+                              </Text>
+                            )}
+                            
+                            {tokenData[integration.name].refresh_token && (
+                              <>
+                                <Flex justify="space-between" align="center" mt={2} mb={1}>
+                                  <Text fontSize="xs" fontWeight="medium">Refresh Token:</Text>
+                                  <IconButton
+                                    h="1.2rem"
+                                    size="xs"
+                                    aria-label="Copy token"
+                                    icon={<CopyIcon />}
+                                    onClick={() => handleCopyToken(tokenData[integration.name].refresh_token)}
+                                  />
+                                </Flex>
+                                <Text 
+                                  fontSize="xs" 
+                                  fontFamily="mono" 
+                                  p={2} 
+                                  bg={useColorModeValue("gray.50", "gray.800")} 
+                                  borderRadius="md"
+                                  wordBreak="break-all"
+                                  maxH="40px"
+                                  overflow="hidden"
+                                  textOverflow="ellipsis"
+                                >
+                                  {showTokens[integration.name] 
+                                    ? `${tokenData[integration.name].refresh_token.substring(0, 40)}...` 
+                                    : `${tokenData[integration.name].refresh_token.substring(0, 10).replace(/./g, '*')}...`}
+                                </Text>
+                              </>
+                            )}
+                            
+                            <Text fontSize="2xs" color="gray.500" mt={1}>
+                              Type: {tokenData[integration.name].token_type || 'Bearer'}
+                            </Text>
+                          </Box>
+                        </VStack>
+                      ) : (
+                        <VStack spacing={4} h="100%" justify="center" align="center">
+                          <Icon 
+                            as={integration.name === 'Gmail' ? ViewIcon : FiShield} 
+                            boxSize={12} 
+                            color="gray.300" 
+                          />
+                          <Text color="gray.500" textAlign="center">
+                            Connect to view your authentication tokens
                           </Text>
-                        </Box>
+                        </VStack>
                       )}
+                    </Box>
+                    
+                    {/* Button Area */}
+                    <Box 
+                      w="100%" 
+                      p={4} 
+                      borderTop="1px" 
+                      borderColor={useColorModeValue('gray.100', 'gray.700')}
+                      bg={useColorModeValue('gray.50', 'gray.800')}
+                      display="flex"
+                      justifyContent="center"
+                    >
                       <Button
                         colorScheme={integration.isConnected ? 'red' : 'blue'}
-                        size="lg"
-                        fontSize="lg"
-                        px={8}
-                        py={6}
+                        size="md"
+                        fontSize="sm"
+                        px={6}
+                        py={4}
+                        width="200px"
+                        mx="auto"
                         onClick={() => handleConnect(integration)}
                         rounded="full"
                         bgGradient={integration.isConnected 
@@ -705,19 +759,19 @@ export default function Home() {
                       >
                         {integration.isConnected ? 'Disconnect' : 'Connect'}
                       </Button>
-                    </VStack>
-                  </Flex>
+                    </Box>
+                  </VStack>
                 </CardBody>
               </Card>
             ))}
-          </VStack>
+          </Flex>
 
           <Box textAlign="center" mt={16}>
             <Button
-              size="lg"
-              fontSize="xl"
-              px={12}
-              py={8}
+              size="md"
+              fontSize="md"
+              px={8}
+              py={5}
               onClick={handleExportConfig}
               rounded="full"
               bgGradient="linear-gradient(135deg, #00C6FF 0%, #0077FF 100%)"
