@@ -27,7 +27,7 @@ import {
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
 import NextLink from 'next/link';
-import { authorizeSketchfab } from '../lib/api';
+import { authorizeSketchfab, authorizeGmail, API_BASE_URL } from '../lib/api';
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -114,6 +114,12 @@ const Feature = ({ title, text, icon, delay }: FeatureProps) => {
 export default function Home() {
   const [integrations, setIntegrations] = useState<Integration[]>([
     {
+      name: 'Gmail',
+      isConnected: false,
+      description: 'Connect to access and send Gmail messages',
+      scope: 'readonly,send',
+    },
+    {
       name: 'Sketchfab',
       isConnected: false,
       description: 'Connect to access your Sketchfab 3D models',
@@ -128,119 +134,229 @@ export default function Home() {
 
   // Handle OAuth callback with code parameter
   useEffect(() => {
-    const handleSketchfabCallback = async () => {
+    const handleOAuthCallback = async () => {
+      console.log('Handling OAuth callback, checking URL parameters');
       // Check if URL has code parameter (OAuth callback)
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
+      console.log('OAuth code from URL:', code);
       
       if (code) {
         try {
-          console.log('Processing Sketchfab OAuth callback with code:', code);
+          // Determine which provider based on URL path or stored state
+          let provider = 'sketchfab'; // Default provider
+          let normalizedProvider = 'Sketchfab'; // For UI display and mapping
+          
+          // Check URL path for provider information
+          const path = window.location.pathname;
+          console.log('Current path:', path);
+          
+          if (path.includes('/oauth_callback/')) {
+            if (path.includes('/oauth_callback/google')) {
+              provider = 'google';
+              normalizedProvider = 'Gmail';
+            } else if (path.includes('/oauth_callback/sketchfab')) {
+              provider = 'sketchfab';
+              normalizedProvider = 'Sketchfab';
+            }
+          } 
+          // Fallback to state parameter or localStorage
+          else if (urlParams.get('state') === 'gmail' || localStorage.getItem('oauth_pending_provider') === 'gmail') {
+            provider = 'google';
+            normalizedProvider = 'Gmail';
+          }
+          
+          console.log(`Identified provider: ${provider}, normalized: ${normalizedProvider}`);
+          console.log(`Processing ${provider} OAuth callback with code:`, code);
           toast({
             title: 'Processing Authentication',
-            description: 'Completing Sketchfab authentication...',
+            description: `Completing ${normalizedProvider} authentication...`,
             status: 'info',
             duration: 3000,
             isClosable: true,
           });
           
           // Call backend to exchange code for token
-          const response = await fetch(`http://localhost:8000/api/oauth/callback/sketchfab?code=${code}`);
+          const response = await fetch(`${API_BASE_URL}/api/oauth/callback/${provider}?code=${code}`);
           
           if (!response.ok) {
-            throw new Error('Failed to exchange code for token');
+            console.error(`Error response from API: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('Error details:', errorText);
+            throw new Error(`Failed to exchange code for token for ${provider}`);
           }
           
           const tokenData = await response.json();
-          console.log('Token received:', tokenData);
+          console.log('Token data received from API:', tokenData);
           
           // Store token data
           if (tokenData.user_id) {
+            const storageKey = `oauth_token_${provider}_${tokenData.user_id}`;
+            console.log(`Storing token data in localStorage with key: ${storageKey}`);
             localStorage.setItem(
-              `oauth_token_sketchfab_${tokenData.user_id}`,
+              storageKey,
               JSON.stringify(tokenData)
             );
             
             // Get user info
             const userResponse = await fetch(
-              `http://localhost:8000/api/oauth/me/sketchfab?user_id=${tokenData.user_id}`
+              `${API_BASE_URL}/api/oauth/me/${provider}?user_id=${tokenData.user_id}`
             );
             
+            console.log(`User info response status: ${userResponse.status}`);
             if (userResponse.ok) {
               const userData = await userResponse.json();
+              console.log('User data received:', userData);
               localStorage.setItem(
-                `oauth_user_sketchfab_${tokenData.user_id}`,
+                `oauth_user_${provider}_${tokenData.user_id}`,
                 JSON.stringify(userData)
               );
+            } else {
+              console.error('Failed to fetch user info');
+              const errorText = await userResponse.text();
+              console.error('User info error details:', errorText);
             }
             
             // Update integrations state
-            setIntegrations(prev => 
-              prev.map(int => ({
+            console.log('Updating integrations state to reflect connection');
+            setIntegrations(prev => {
+              const updated = prev.map(int => ({
                 ...int,
-                isConnected: int.name === 'Sketchfab' ? true : int.isConnected
-              }))
-            );
+                isConnected: int.name === normalizedProvider ? true : int.isConnected
+              }));
+              console.log('Updated integrations:', updated);
+              return updated;
+            });
+            
+            // Store token data for display
+            console.log('Updating tokenData state with received tokens');
+            setTokenData(prev => {
+              const updated = {
+                ...prev,
+                [normalizedProvider]: tokenData.token_info
+              };
+              console.log('Updated tokenData state:', updated);
+              return updated;
+            });
             
             toast({
               title: 'Authentication Successful',
-              description: 'Connected to Sketchfab successfully',
+              description: `Connected to ${normalizedProvider} successfully`,
               status: 'success',
               duration: 5000,
               isClosable: true,
             });
             
-            // Clean up URL
+            // Clean up URL and localStorage
+            localStorage.removeItem('oauth_pending_provider');
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (error) {
-          console.error('Error processing Sketchfab callback:', error);
+          console.error('Error processing OAuth callback:', error);
           toast({
             title: 'Authentication Error',
-            description: 'Failed to complete Sketchfab authentication',
+            description: 'Failed to complete authentication',
             status: 'error',
             duration: 5000,
             isClosable: true,
           });
+          localStorage.removeItem('oauth_pending_provider');
         }
       }
     };
     
-    handleSketchfabCallback();
+    handleOAuthCallback();
   }, [toast]);
 
   useEffect(() => {
     // Check localStorage for tokens on initial load
     const checkStoredTokens = () => {
+      console.log('Checking stored tokens in localStorage');
       const localStorageKeys = Object.keys(localStorage);
-      const sketchfabTokenKey = localStorageKeys.find(key => key.startsWith('oauth_token_sketchfab_'));
+      console.log('Available localStorage keys:', localStorageKeys);
       
-      // Update Sketchfab connection status based on localStorage
-      if (sketchfabTokenKey) {
-        try {
-          const tokenData = JSON.parse(localStorage.getItem(sketchfabTokenKey) || '{}');
-          if (tokenData.token_info?.access_token) {
-            setIntegrations(prev => 
-              prev.map(int => ({
-                ...int,
-                isConnected: int.name === 'Sketchfab' ? true : int.isConnected
-              }))
-            );
-            
-            // Store token data for display
-            setTokenData(prev => ({
-              ...prev,
-              'Sketchfab': tokenData.token_info
-            }));
-          }
-        } catch (error) {
-          console.error('Error parsing Sketchfab token from localStorage:', error);
+      // Check for each integration
+      integrations.forEach(integration => {
+        // Get possible provider names for this integration
+        let possibleProviderNames: string[] = [];
+        
+        if (integration.name === 'Gmail') {
+          possibleProviderNames = ['google', 'gmail'];
+        } else if (integration.name === 'Sketchfab') {
+          possibleProviderNames = ['sketchfab'];
+        } else {
+          possibleProviderNames = [integration.name.toLowerCase()];
         }
-      }
+        
+        console.log(`Checking for ${integration.name} token with possible provider names:`, possibleProviderNames);
+        
+        // Try different possible key patterns for all possible provider names
+        let tokenKey = null;
+        let foundProviderName = null;
+        
+        for (const providerName of possibleProviderNames) {
+          const pattern = `oauth_token_${providerName}_`;
+          const foundKey = localStorageKeys.find(key => key.startsWith(pattern));
+          if (foundKey) {
+            tokenKey = foundKey;
+            foundProviderName = providerName;
+            console.log(`Found token key with pattern ${pattern}:`, tokenKey);
+            break;
+          }
+        }
+        
+        console.log(`Final token key found for ${integration.name}:`, tokenKey);
+        
+        if (tokenKey) {
+          try {
+            const rawTokenData = localStorage.getItem(tokenKey);
+            console.log(`Raw token data for ${integration.name} (${foundProviderName}):`, rawTokenData);
+            const tokenData = JSON.parse(localStorage.getItem(tokenKey) || '{}');
+            console.log(`Parsed token data for ${integration.name}:`, tokenData);
+            
+            // Look for token in different possible locations in the structure
+            const accessToken = 
+              tokenData.token_info?.access_token || 
+              tokenData.access_token || 
+              tokenData.token;
+            
+            if (accessToken) {
+              console.log(`Valid access token found for ${integration.name}`);
+              setIntegrations(prev => 
+                prev.map(int => ({
+                  ...int,
+                  isConnected: int.name === integration.name ? true : int.isConnected
+                }))
+              );
+              
+              // Normalize the token data structure
+              const normalizedTokenInfo = {
+                access_token: accessToken,
+                refresh_token: tokenData.token_info?.refresh_token || tokenData.refresh_token || null,
+                expires_in: tokenData.token_info?.expires_in || tokenData.expires_in || null,
+                token_type: tokenData.token_info?.token_type || tokenData.token_type || 'Bearer'
+              };
+              
+              // Store token data for display - use UI integration name
+              setTokenData(prev => ({
+                ...prev,
+                [integration.name]: normalizedTokenInfo
+              }));
+              console.log(`Updated tokenData state for ${integration.name}:`, normalizedTokenInfo);
+            } else {
+              console.log(`No valid access token for ${integration.name} in token data:`, tokenData);
+            }
+          } catch (error) {
+            console.error(`Error parsing ${integration.name} token from localStorage:`, error);
+          }
+        } else {
+          console.log(`No token found for ${integration.name}`);
+        }
+      });
     };
     
     checkStoredTokens();
-  }, []);
+  }, [integrations]);
 
   const handleToggleToken = (integrationName: string) => {
     setShowTokens(prev => ({
@@ -261,6 +377,20 @@ export default function Home() {
   };
 
   const handleConnect = async (integration: Integration) => {
+    console.log(`handleConnect called for ${integration.name}, current status: ${integration.isConnected}`);
+    
+    // Get the correct API provider name based on UI integration name
+    let apiProviderName: string;
+    if (integration.name === 'Gmail') {
+      apiProviderName = 'google';
+    } else if (integration.name === 'Sketchfab') {
+      apiProviderName = 'sketchfab';
+    } else {
+      apiProviderName = integration.name.toLowerCase();
+    }
+    
+    console.log(`Using API provider name: ${apiProviderName} for UI integration: ${integration.name}`);
+    
     if (integration.name === 'Sketchfab') {
       if (!integration.isConnected) {
         // Initiate Sketchfab OAuth flow directly
@@ -296,6 +426,7 @@ export default function Home() {
         );
         
         // Remove all Sketchfab tokens from localStorage
+        console.log('Removing Sketchfab tokens:', sketchfabTokenKeys);
         sketchfabTokenKeys.forEach(key => localStorage.removeItem(key));
         
         // Update state
@@ -321,6 +452,72 @@ export default function Home() {
           isClosable: true,
         });
       }
+    } else if (integration.name === 'Gmail') {
+      if (!integration.isConnected) {
+        // Initiate Gmail OAuth flow
+        try {
+          toast({
+            title: 'Connecting to Gmail',
+            description: 'Initializing authentication...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+          
+          // Store provider name for callback handling
+          localStorage.setItem('oauth_pending_provider', 'gmail');
+          
+          // Call Gmail authorization function
+          authorizeGmail();
+          
+        } catch (error) {
+          console.error('Error initiating Gmail auth:', error);
+          toast({
+            title: 'Connection Failed',
+            description: 'Failed to connect to Gmail',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          localStorage.removeItem('oauth_pending_provider');
+        }
+      } else {
+        // Disconnect Gmail - look for all possible key patterns
+        const localStorageKeys = Object.keys(localStorage);
+        const gmailTokenKeys = localStorageKeys.filter(key => 
+          key.startsWith('oauth_token_google_') || 
+          key.startsWith('oauth_user_google_') ||
+          key.startsWith('oauth_token_gmail_') || 
+          key.startsWith('oauth_user_gmail_')
+        );
+        
+        // Remove all Gmail tokens from localStorage
+        console.log('Removing Gmail tokens:', gmailTokenKeys);
+        gmailTokenKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Update state
+        setIntegrations(prev => 
+          prev.map(int => ({
+            ...int,
+            isConnected: int.name === 'Gmail' ? false : int.isConnected
+          }))
+        );
+        
+        // Remove from tokenData
+        setTokenData(prev => {
+          const newTokenData = { ...prev };
+          delete newTokenData['Gmail'];
+          return newTokenData;
+        });
+        
+        toast({
+          title: 'Disconnected',
+          description: 'Successfully disconnected from Gmail',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     }
   };
 
@@ -334,6 +531,9 @@ export default function Home() {
         accessToken: int.isConnected && tokenData[int.name]?.access_token 
           ? tokenData[int.name].access_token 
           : null,
+        refreshToken: int.isConnected && tokenData[int.name]?.refresh_token
+          ? tokenData[int.name].refresh_token
+          : null
       })),
     };
 
@@ -418,9 +618,9 @@ export default function Home() {
                     </Box>
                     <VStack spacing={4} align="flex-end">
                       {integration.isConnected && tokenData[integration.name]?.access_token && (
-                        <Box width="280px" mb={2}>
+                        <Box width="320px" mb={2}>
                           <Text fontSize="sm" fontWeight="bold" mb={1}>Access Token:</Text>
-                          <InputGroup size="sm">
+                          <InputGroup size="sm" mb={2}>
                             <Input 
                               value={showTokens[integration.name] 
                                 ? tokenData[integration.name].access_token 
@@ -448,6 +648,43 @@ export default function Home() {
                               </HStack>
                             </InputRightElement>
                           </InputGroup>
+                          
+                          {tokenData[integration.name].expires_in && (
+                            <Text fontSize="xs" color="gray.500" mb={2}>
+                              Expires in: {tokenData[integration.name].expires_in} seconds
+                            </Text>
+                          )}
+                          
+                          {tokenData[integration.name].refresh_token && (
+                            <>
+                              <Text fontSize="sm" fontWeight="bold" mb={1}>Refresh Token:</Text>
+                              <InputGroup size="sm">
+                                <Input 
+                                  value={showTokens[integration.name] 
+                                    ? tokenData[integration.name].refresh_token 
+                                    : tokenData[integration.name].refresh_token.replace(/./g, '*')}
+                                  isReadOnly
+                                  pr="4.5rem"
+                                  fontFamily="mono"
+                                />
+                                <InputRightElement width="4.5rem">
+                                  <HStack spacing={1}>
+                                    <IconButton
+                                      h="1.5rem"
+                                      size="sm"
+                                      aria-label="Copy token"
+                                      icon={<CopyIcon />}
+                                      onClick={() => handleCopyToken(tokenData[integration.name].refresh_token)}
+                                    />
+                                  </HStack>
+                                </InputRightElement>
+                              </InputGroup>
+                            </>
+                          )}
+                          
+                          <Text fontSize="xs" color="gray.500" mt={2}>
+                            Token Type: {tokenData[integration.name].token_type || 'Bearer'}
+                          </Text>
                         </Box>
                       )}
                       <Button

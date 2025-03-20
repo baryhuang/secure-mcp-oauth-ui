@@ -41,7 +41,7 @@ const OAuthCallback = () => {
           
           // Store token information in localStorage or state management system
           localStorage.setItem(
-            `oauth_token_${provider}_${tokenResponse.user_id}`,
+            `oauth_token_${provider}`,
             JSON.stringify(tokenResponse)
           );
           

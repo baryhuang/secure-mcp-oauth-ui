@@ -30,13 +30,13 @@ const SketchfabUserInfo = ({ userId, onDisconnect }: SketchfabUserInfoProps) => 
     const loadUserData = () => {
       try {
         // Load token data
-        const tokenData = localStorage.getItem(`oauth_token_sketchfab_${userId}`);
+        const tokenData = localStorage.getItem(`oauth_token_sketchfab`);
         if (tokenData) {
           setToken(JSON.parse(tokenData));
         }
         
         // Load user data
-        const userData = localStorage.getItem(`oauth_user_sketchfab_${userId}`);
+        const userData = localStorage.getItem(`oauth_user_sketchfab`);
         if (userData) {
           setUser(JSON.parse(userData));
         }

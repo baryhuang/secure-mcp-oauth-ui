@@ -1,4 +1,15 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.secure-mcp-oauth.com';
+export { API_BASE_URL };
+
+// OAuth configuration - these should ideally come from environment variables
+const OAUTH_CONFIG = {
+  sketchfab: {
+    clientId: process.env.NEXT_PUBLIC_SKETCHFAB_CLIENT_ID || 'tpZqqaJJn5iFTPc2EBVDP4l62qchGxrTEKzS4yFO'
+  },
+  gmail: {
+    clientId: process.env.NEXT_PUBLIC_GMAIL_CLIENT_ID || '594074475192-56d8c2dg020cvvtpq6ujp5rkd7urkm60.apps.googleusercontent.com'
+  }
+};
 
 export interface OAuthTokenResponse {
   access_token: string;
@@ -108,12 +119,32 @@ export const getOAuthProviders = async (): Promise<string[]> => {
 };
 
 /**
+ * Get the redirect URI for a specific OAuth provider
+ */
+const getRedirectUri = (provider: string): string => {
+  return `http://localhost:5173/oauth_callback/${provider === 'gmail' ? 'google' : provider}`;
+};
+
+/**
  * Initiates Sketchfab OAuth flow using the direct authorization URL
  */
 export const authorizeSketchfab = (): void => {
-  const clientId = 'tpZqqaJJn5iFTPc2EBVDP4l62qchGxrTEKzS4yFO';
-  const redirectUri = 'http://localhost:5173';
+  const clientId = OAUTH_CONFIG.sketchfab.clientId;
+  const redirectUri = getRedirectUri('sketchfab');
   const encodedRedirectUri = encodeURIComponent(redirectUri);
   
   window.location.href = `https://sketchfab.com/oauth2/authorize/?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}`;
+};
+
+/**
+ * Initiates Gmail OAuth flow using the direct authorization URL
+ */
+export const authorizeGmail = (): void => {
+  const clientId = OAUTH_CONFIG.gmail.clientId;
+  const redirectUri = getRedirectUri('gmail');
+  const scope = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send';
+  const encodedRedirectUri = encodeURIComponent(redirectUri);
+  const encodedScope = encodeURIComponent(scope);
+  
+  window.location.href = `https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}&scope=${encodedScope}&access_type=offline&prompt=consent`;
 }; 
