@@ -129,16 +129,16 @@ export default function Home() {
       scope: 'readonly,send',
     },
     {
-      name: 'Sketchfab',
-      isConnected: false,
-      description: 'Connect to access your Sketchfab 3D models',
-      scope: 'read',
-    },
-    {
       name: 'Twitter',
       isConnected: false,
       description: 'Connect to access your Twitter account',
       scope: 'tweet.read users.read',
+    },
+    {
+      name: 'Sketchfab',
+      isConnected: false,
+      description: 'Connect to access your Sketchfab 3D models',
+      scope: 'read',
     },
   ]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
