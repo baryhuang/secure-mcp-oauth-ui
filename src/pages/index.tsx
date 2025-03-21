@@ -23,6 +23,15 @@ import {
   InputRightElement,
   IconButton,
   Collapse,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Code,
 } from '@chakra-ui/react';
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
@@ -137,6 +146,7 @@ export default function Home() {
   const toast = useToast();
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)');
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Handle OAuth callback with code parameter
   useEffect(() => {
@@ -585,36 +595,135 @@ export default function Home() {
     }
   };
 
-  const handleExportConfig = () => {
-    const mcpConfig = {
-      version: '1.0',
-      integrations: integrations.map(int => ({
-        name: int.name,
-        status: int.isConnected ? 'connected' : 'disconnected',
-        scope: int.scope,
-        accessToken: int.isConnected && tokenData[int.name]?.access_token 
-          ? tokenData[int.name].access_token 
-          : null,
-        refreshToken: int.isConnected && tokenData[int.name]?.refresh_token
-          ? tokenData[int.name].refresh_token
-          : null
-      })),
-    };
-
-    const configStr = JSON.stringify(mcpConfig, null, 2);
-    navigator.clipboard.writeText(configStr);
+  const handleShowAllValues = () => {
+    // Generate env variables for display
+    let envText = '';
     
-    toast({
-      title: 'MCP Config Copied',
-      description: 'Configuration has been copied to clipboard',
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
+    integrations.forEach(integration => {
+      if (integration.isConnected && tokenData[integration.name]) {
+        const providerKey = integration.name.toUpperCase();
+        
+        if (tokenData[integration.name].access_token) {
+          envText += `${providerKey}_ACCESS_TOKEN=${tokenData[integration.name].access_token}\n`;
+        }
+        
+        if (tokenData[integration.name].refresh_token) {
+          envText += `${providerKey}_REFRESH_TOKEN=${tokenData[integration.name].refresh_token}\n`;
+        }
+        
+        if (tokenData[integration.name].expires_in) {
+          envText += `${providerKey}_TOKEN_EXPIRES_IN=${tokenData[integration.name].expires_in}\n`;
+        }
+        
+        if (tokenData[integration.name].token_type) {
+          envText += `${providerKey}_TOKEN_TYPE=${tokenData[integration.name].token_type}\n`;
+        }
+      }
     });
+    
+    // If no tokens found
+    if (!envText) {
+      envText = "No connected integrations found.";
+    }
+    
+    // Open modal with environment variables
+    onOpen();
   };
 
   return (
     <Box bg={bgColor} minH="100vh" overflow="hidden">
+      {/* Modal for showing all values */}
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+        <ModalOverlay backdropFilter="blur(10px)" />
+        <ModalContent>
+          <ModalHeader>Environment Variables</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Code
+              p={4}
+              borderRadius="md"
+              w="100%"
+              bg="gray.800"
+              color="white"
+              fontSize="sm"
+              fontFamily="monospace"
+              whiteSpace="pre"
+              overflowX="auto"
+            >
+              {integrations.map(integration => {
+                if (integration.isConnected && tokenData[integration.name]) {
+                  const providerKey = integration.name.toUpperCase();
+                  return (
+                    <Box key={integration.name}>
+                      {tokenData[integration.name].access_token && (
+                        <Text>{`${providerKey}_ACCESS_TOKEN=${tokenData[integration.name].access_token}`}</Text>
+                      )}
+                      {tokenData[integration.name].refresh_token && (
+                        <Text>{`${providerKey}_REFRESH_TOKEN=${tokenData[integration.name].refresh_token}`}</Text>
+                      )}
+                      {tokenData[integration.name].expires_in && (
+                        <Text>{`${providerKey}_TOKEN_EXPIRES_IN=${tokenData[integration.name].expires_in}`}</Text>
+                      )}
+                      {tokenData[integration.name].token_type && (
+                        <Text>{`${providerKey}_TOKEN_TYPE=${tokenData[integration.name].token_type}`}</Text>
+                      )}
+                      <Text mt={2}></Text>
+                    </Box>
+                  );
+                }
+                return null;
+              })}
+              {!integrations.some(int => int.isConnected && tokenData[int.name]) && (
+                <Text>No connected integrations found.</Text>
+              )}
+            </Code>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={onClose}>
+              Close
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                const envText = integrations.reduce((acc, integration) => {
+                  if (integration.isConnected && tokenData[integration.name]) {
+                    const providerKey = integration.name.toUpperCase();
+                    let text = acc;
+                    
+                    if (tokenData[integration.name].access_token) {
+                      text += `${providerKey}_ACCESS_TOKEN=${tokenData[integration.name].access_token}\n`;
+                    }
+                    if (tokenData[integration.name].refresh_token) {
+                      text += `${providerKey}_REFRESH_TOKEN=${tokenData[integration.name].refresh_token}\n`;
+                    }
+                    if (tokenData[integration.name].expires_in) {
+                      text += `${providerKey}_TOKEN_EXPIRES_IN=${tokenData[integration.name].expires_in}\n`;
+                    }
+                    if (tokenData[integration.name].token_type) {
+                      text += `${providerKey}_TOKEN_TYPE=${tokenData[integration.name].token_type}\n`;
+                    }
+                    
+                    return text;
+                  }
+                  return acc;
+                }, '');
+                
+                navigator.clipboard.writeText(envText || "No connected integrations found.");
+                toast({
+                  title: 'Copied to Clipboard',
+                  description: 'Environment variables have been copied to clipboard',
+                  status: 'success',
+                  duration: 3000,
+                  isClosable: true,
+                });
+              }}
+            >
+              Copy to Clipboard
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Integrations Section */}
       <Box 
         bg="white" 
@@ -882,7 +991,7 @@ export default function Home() {
               fontSize="md"
               px={8}
               py={5}
-              onClick={handleExportConfig}
+              onClick={handleShowAllValues}
               rounded="full"
               bgGradient="linear-gradient(135deg, #00C6FF 0%, #0077FF 100%)"
               color="white"
@@ -893,7 +1002,7 @@ export default function Home() {
               }}
               shadow="md"
             >
-              Export MCP Config
+              Show All Values
             </Button>
           </Box>
         </Container>
