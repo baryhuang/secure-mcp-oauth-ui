@@ -758,7 +758,7 @@ export default function Home() {
                 transition="all 0.3s ease"
                 _hover={{ transform: 'scale(1.02)' }}
                 width={{ base: "100%", md: "350px" }}
-                height={{ base: "370px", md: "370px" }}
+                height={{ base: "450px", md: "450px" }}
                 mx="auto"
               >
                 <CardBody p={0} overflow="hidden">
