@@ -155,7 +155,6 @@ export default function Home() {
       console.log('Handling OAuth callback, checking URL parameters');
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
-      console.log('OAuth code from URL:', code);
       
       if (code) {
         try {
@@ -165,7 +164,6 @@ export default function Home() {
           
           // Check URL path for provider information
           const path = window.location.pathname;
-          console.log('Current path:', path);
           
           if (path.includes('/oauth_callback/')) {
             if (path.includes('/oauth_callback/google')) {
@@ -188,8 +186,6 @@ export default function Home() {
             normalizedProvider = 'Twitter';
           }
           
-          console.log(`Identified provider: ${provider}, normalized: ${normalizedProvider}`);
-          
           // For Twitter, include the code_verifier in the request
           let apiUrl = `${API_BASE_URL}/api/oauth/callback/${provider}?code=${code}`;
           if (provider === 'twitter') {
@@ -202,14 +198,10 @@ export default function Home() {
           // Call backend to exchange code for token
           const response = await fetch(apiUrl);
           if (!response.ok) {
-            console.error(`Error response from API: ${response.status} ${response.statusText}`);
-            const errorText = await response.text();
-            console.error('Error details:', errorText);
             throw new Error(`Failed to exchange code for token for ${provider}`);
           }
           
           const data = await response.json();
-          console.log('Response data from API:', data);
 
           if (data.success && data.user_info && data.token_info) {
             // Handle Twitter's specific response format
@@ -228,18 +220,28 @@ export default function Home() {
             );
             
             // Update integrations state
-            setIntegrations(prev => 
-              prev.map(int => ({
-                ...int,
-                isConnected: int.name === normalizedProvider ? true : int.isConnected
-              }))
-            );
+            await new Promise<void>(resolve => {
+              setIntegrations(prev => {
+                const updated = prev.map(int => ({
+                  ...int,
+                  isConnected: int.name === normalizedProvider ? true : int.isConnected
+                }));
+                resolve();
+                return updated;
+              });
+            });
             
             // Store token data for display
-            setTokenData(prev => ({
-              ...prev,
-              [normalizedProvider]: data.token_info
-            }));
+            await new Promise<void>(resolve => {
+              setTokenData(prev => {
+                const updated = {
+                  ...prev,
+                  [normalizedProvider]: data.token_info
+                };
+                resolve();
+                return updated;
+              });
+            });
 
             // Clean up code verifier
             localStorage.removeItem('twitter_code_verifier');
@@ -251,12 +253,13 @@ export default function Home() {
               duration: 5000,
               isClosable: true,
             });
+
+            // Clean up URL and localStorage after successful data saving
+            localStorage.removeItem('oauth_pending_provider');
+            window.location.href = '/'; // Use window.location.href for a full page redirect
+          } else {
+            throw new Error('Invalid response format from server');
           }
-          
-          // Clean up URL and localStorage
-          localStorage.removeItem('oauth_pending_provider');
-          window.history.replaceState({}, document.title, '/');
-          
         } catch (error) {
           console.error('Error processing OAuth callback:', error);
           toast({
@@ -268,7 +271,7 @@ export default function Home() {
           });
           localStorage.removeItem('oauth_pending_provider');
           localStorage.removeItem('twitter_code_verifier');
-          window.history.replaceState({}, document.title, '/');
+          window.location.href = '/'; // Redirect on error as well
         }
       }
     };

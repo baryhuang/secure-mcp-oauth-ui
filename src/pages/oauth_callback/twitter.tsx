@@ -54,6 +54,12 @@ export default function TwitterOAuthCallback() {
               );
               
               console.log('Stored Twitter user and token data for:', userId);
+              
+              // Store provider identifier for callback handling on home page
+              localStorage.setItem('oauth_pending_provider', 'twitter');
+              
+              // Redirect to home page after successful data storage
+              window.location.href = '/?code=' + code + '&state=twitter';
             } 
             // Fallback for older response format
             else if (data.user_id) {
@@ -61,12 +67,16 @@ export default function TwitterOAuthCallback() {
                 `oauth_token_twitter_${data.user_id}`,
                 JSON.stringify(data)
               );
+              
+              // Store provider identifier for callback handling
+              localStorage.setItem('oauth_pending_provider', 'twitter');
+              
+              // Redirect to home page after successful data storage
+              window.location.href = '/?code=' + code + '&state=twitter';
+            } else {
+              throw new Error('Invalid response format from server');
             }
             
-            // Store provider identifier for callback handling on home page
-            localStorage.setItem('oauth_pending_provider', 'twitter');
-            
-
           } catch (error) {
             console.error('Error in token exchange:', error);
             // Use window.location for more reliable redirect on error

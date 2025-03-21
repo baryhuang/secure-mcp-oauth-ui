@@ -205,7 +205,7 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
 export const authorizeTwitter = async (): Promise<void> => {
   const clientId = OAUTH_CONFIG.twitter.clientId;
   const redirectUri = getRedirectUri('twitter');
-  const scope = 'tweet.read users.read';
+  const scope = 'tweet.read users.read tweet.write offline.access';
   const encodedRedirectUri = encodeURIComponent(redirectUri);
   const encodedScope = encodeURIComponent(scope);
   
