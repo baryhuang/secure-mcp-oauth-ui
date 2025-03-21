@@ -9,7 +9,7 @@ export interface ProviderConfigs {
 }
 
 // Default provider configurations
-export const defaultProviders: string[] = ['github', 'google', 'sketchfab'];
+export const defaultProviders: string[] = ['github', 'google', 'sketchfab', 'twitter'];
 
 const CONFIG_KEY = 'oauth_provider_configs';
 

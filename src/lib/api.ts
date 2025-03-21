@@ -8,6 +8,9 @@ const OAUTH_CONFIG = {
   },
   gmail: {
     clientId: process.env.NEXT_PUBLIC_GMAIL_CLIENT_ID || '594074475192-56d8c2dg020cvvtpq6ujp5rkd7urkm60.apps.googleusercontent.com'
+  },
+  twitter: {
+    clientId: process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || 'dHVJeVFEYm56a2dOYzhFN211aUM6MTpjaQ'
   }
 };
 
@@ -122,7 +125,13 @@ export const getOAuthProviders = async (): Promise<string[]> => {
  * Get the redirect URI for a specific OAuth provider
  */
 const getRedirectUri = (provider: string): string => {
-  return `http://localhost:5173/oauth_callback/${provider === 'gmail' ? 'google' : provider}`;
+  if (provider === 'gmail') {
+    return `http://localhost:5173/oauth_callback/google`;
+  } else if (provider === 'twitter') {
+    return `http://localhost:5173/oauth_callback/twitter`;
+  } else {
+    return `http://localhost:5173/oauth_callback/${provider}`;
+  }
 };
 
 /**
@@ -147,4 +156,66 @@ export const authorizeGmail = (): void => {
   const encodedScope = encodeURIComponent(scope);
   
   window.location.href = `https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}&scope=${encodedScope}&access_type=offline&prompt=consent`;
+};
+
+/**
+ * Generate a random string for PKCE code_verifier
+ * Following the RFC 7636 spec for PKCE
+ */
+function generateCodeVerifier(length: number = 43): string {
+  // Generate random bytes
+  const randomBytes = new Uint8Array(32);
+  window.crypto.getRandomValues(randomBytes);
+  
+  // Convert to base64url encoding (URL-safe base64)
+  let base64 = btoa(String.fromCharCode.apply(null, Array.from(randomBytes)));
+  
+  // Make base64 string URL safe: replace '+' with '-', '/' with '_', and remove '='
+  base64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  
+  // Ensure we only use allowed characters per RFC 7636
+  base64 = base64.replace(/[^A-Za-z0-9\-._~]/g, '');
+  
+  // Trim to requested length
+  return base64.substring(0, length);
+}
+
+/**
+ * Calculate the code challenge from a verifier using S256 method
+ * Following the RFC 7636 spec for PKCE
+ */
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  // Convert verifier string to Uint8Array
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+  
+  // Calculate SHA-256 hash
+  const hash = await window.crypto.subtle.digest('SHA-256', data);
+  
+  // Convert hash to base64url encoding
+  const base64 = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(hash))));
+  
+  // Make base64 string URL safe: replace '+' with '-', '/' with '_', and remove '='
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+/**
+ * Initiates Twitter OAuth flow using the direct authorization URL
+ */
+export const authorizeTwitter = async (): Promise<void> => {
+  const clientId = OAUTH_CONFIG.twitter.clientId;
+  const redirectUri = getRedirectUri('twitter');
+  const scope = 'tweet.read users.read';
+  const encodedRedirectUri = encodeURIComponent(redirectUri);
+  const encodedScope = encodeURIComponent(scope);
+  
+  // Generate a code verifier
+  const codeVerifier = generateCodeVerifier();
+  localStorage.setItem('twitter_code_verifier', codeVerifier);
+  
+  // Generate code challenge using S256 method
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  
+  // Redirect to Twitter authorization URL
+  window.location.href = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}&scope=${encodedScope}&state=twitter&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 }; 

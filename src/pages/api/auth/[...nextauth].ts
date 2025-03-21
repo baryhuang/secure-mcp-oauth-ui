@@ -1,6 +1,35 @@
 import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import TwitterProvider from 'next-auth/providers/twitter';
 import { getProviderConfig } from '../../../lib/config/providerConfig';
+
+const getTwitterProvider = () => {
+  // First try environment variables
+  if (process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET) {
+    return TwitterProvider({
+      clientId: process.env.TWITTER_CLIENT_ID,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      version: "2.0" // Use Twitter OAuth 2.0
+    });
+  }
+  
+  // Fallback to stored config if available
+  const twitterConfig = getProviderConfig('twitter');
+  if (twitterConfig?.enabled) {
+    return TwitterProvider({
+      clientId: twitterConfig.clientId,
+      clientSecret: twitterConfig.clientSecret,
+      version: "2.0" // Use Twitter OAuth 2.0
+    });
+  }
+  
+  // Return a disabled provider if no configuration is available
+  return TwitterProvider({
+    clientId: 'DISABLED',
+    clientSecret: 'DISABLED',
+    version: "2.0" // Use Twitter OAuth 2.0
+  });
+};
 
 const getGoogleProvider = () => {
   // First try environment variables
@@ -52,7 +81,7 @@ const getGoogleProvider = () => {
 };
 
 export const authOptions = {
-  providers: [getGoogleProvider()],
+  providers: [getGoogleProvider(), getTwitterProvider()],
   callbacks: {
     async jwt({ token, account }: any) {
       if (account) {

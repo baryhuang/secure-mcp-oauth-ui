@@ -27,7 +27,7 @@ import {
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
 import NextLink from 'next/link';
-import { authorizeSketchfab, authorizeGmail, API_BASE_URL } from '../lib/api';
+import { authorizeSketchfab, authorizeGmail, authorizeTwitter, API_BASE_URL } from '../lib/api';
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -125,6 +125,12 @@ export default function Home() {
       description: 'Connect to access your Sketchfab 3D models',
       scope: 'read',
     },
+    {
+      name: 'Twitter',
+      isConnected: false,
+      description: 'Connect to access your Twitter account',
+      scope: 'tweet.read users.read',
+    },
   ]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [tokenData, setTokenData] = useState<Record<string, any>>({});
@@ -158,12 +164,18 @@ export default function Home() {
             } else if (path.includes('/oauth_callback/sketchfab')) {
               provider = 'sketchfab';
               normalizedProvider = 'Sketchfab';
+            } else if (path.includes('/oauth_callback/twitter')) {
+              provider = 'twitter';
+              normalizedProvider = 'Twitter';
             }
           } 
           // Fallback to state parameter or localStorage
           else if (urlParams.get('state') === 'gmail' || localStorage.getItem('oauth_pending_provider') === 'gmail') {
             provider = 'google';
             normalizedProvider = 'Gmail';
+          } else if (urlParams.get('state') === 'twitter' || localStorage.getItem('oauth_pending_provider') === 'twitter') {
+            provider = 'twitter';
+            normalizedProvider = 'Twitter';
           }
           
           console.log(`Identified provider: ${provider}, normalized: ${normalizedProvider}`);
@@ -385,6 +397,8 @@ export default function Home() {
       apiProviderName = 'google';
     } else if (integration.name === 'Sketchfab') {
       apiProviderName = 'sketchfab';
+    } else if (integration.name === 'Twitter') {
+      apiProviderName = 'twitter';
     } else {
       apiProviderName = integration.name.toLowerCase();
     }
@@ -397,7 +411,7 @@ export default function Home() {
         try {
           toast({
             title: 'Connecting to Sketchfab',
-            description: 'Initializing authentication...',
+            description: 'Redirecting to Sketchfab authorization page...',
             status: 'info',
             duration: 3000,
             isClosable: true,
@@ -458,7 +472,7 @@ export default function Home() {
         try {
           toast({
             title: 'Connecting to Gmail',
-            description: 'Initializing authentication...',
+            description: 'Redirecting to Google authorization page...',
             status: 'info',
             duration: 3000,
             isClosable: true,
@@ -513,6 +527,52 @@ export default function Home() {
         toast({
           title: 'Disconnected',
           description: 'Successfully disconnected from Gmail',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } else if (integration.name === 'Twitter') {
+      if (!integration.isConnected) {
+        authorizeTwitter();
+        toast({
+          title: 'Connecting to Twitter',
+          description: 'Redirecting to Twitter authorization page...',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        // Disconnect Twitter
+        const localStorageKeys = Object.keys(localStorage);
+        const twitterTokenKeys = localStorageKeys.filter(key => 
+          key.startsWith('oauth_token_twitter_') || 
+          key.startsWith('oauth_user_twitter_') || 
+          key === 'twitter_code_verifier'
+        );
+        
+        // Remove all Twitter tokens from localStorage
+        console.log('Removing Twitter tokens:', twitterTokenKeys);
+        twitterTokenKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Update state
+        setIntegrations(prev => 
+          prev.map(int => ({
+            ...int,
+            isConnected: int.name === 'Twitter' ? false : int.isConnected
+          }))
+        );
+        
+        // Remove from tokenData
+        setTokenData(prev => {
+          const newTokenData = { ...prev };
+          delete newTokenData['Twitter'];
+          return newTokenData;
+        });
+        
+        toast({
+          title: 'Disconnected',
+          description: 'Successfully disconnected from Twitter',
           status: 'info',
           duration: 3000,
           isClosable: true,
