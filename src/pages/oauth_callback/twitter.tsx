@@ -66,8 +66,7 @@ export default function TwitterOAuthCallback() {
             // Store provider identifier for callback handling on home page
             localStorage.setItem('oauth_pending_provider', 'twitter');
             
-            // Force navigate to the root URL with window.location instead of router.replace
-            window.location.href = '/';
+
           } catch (error) {
             console.error('Error in token exchange:', error);
             // Use window.location for more reliable redirect on error
@@ -84,9 +83,6 @@ export default function TwitterOAuthCallback() {
         // Use window.location for more reliable redirect
         window.location.href = `/?code=${code}&state=twitter&error=missing_code_verifier`;
       }
-    } else {
-      // If no code is present, just go back to the home page using window.location
-      window.location.href = '/';
     }
     
     // Return a cleanup function

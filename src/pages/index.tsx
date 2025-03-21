@@ -143,6 +143,7 @@ export default function Home() {
   ]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [tokenData, setTokenData] = useState<Record<string, any>>({});
+  const initializeRef = useRef(false);
   const toast = useToast();
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)');
@@ -152,7 +153,6 @@ export default function Home() {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       console.log('Handling OAuth callback, checking URL parameters');
-      // Check if URL has code parameter (OAuth callback)
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       console.log('OAuth code from URL:', code);
@@ -189,18 +189,18 @@ export default function Home() {
           }
           
           console.log(`Identified provider: ${provider}, normalized: ${normalizedProvider}`);
-          console.log(`Processing ${provider} OAuth callback with code:`, code);
-          toast({
-            title: 'Processing Authentication',
-            description: `Completing ${normalizedProvider} authentication...`,
-            status: 'info',
-            duration: 3000,
-            isClosable: true,
-          });
+          
+          // For Twitter, include the code_verifier in the request
+          let apiUrl = `${API_BASE_URL}/api/oauth/callback/${provider}?code=${code}`;
+          if (provider === 'twitter') {
+            const codeVerifier = localStorage.getItem('twitter_code_verifier');
+            if (codeVerifier) {
+              apiUrl += `&code_verifier=${codeVerifier}`;
+            }
+          }
           
           // Call backend to exchange code for token
-          const response = await fetch(`${API_BASE_URL}/api/oauth/callback/${provider}?code=${code}`);
-          
+          const response = await fetch(apiUrl);
           if (!response.ok) {
             console.error(`Error response from API: ${response.status} ${response.statusText}`);
             const errorText = await response.text();
@@ -208,62 +208,41 @@ export default function Home() {
             throw new Error(`Failed to exchange code for token for ${provider}`);
           }
           
-          const tokenData = await response.json();
-          console.log('Token data received from API:', tokenData);
-          
-          // Store token data
-          if (tokenData.user_id || (tokenData.token_info && tokenData.user_info)) {
-            // For direct token responses (older format)
-            if (tokenData.user_id) {
-              const storageKey = `oauth_token_${provider}_${tokenData.user_id}`;
-              console.log(`Storing token data in localStorage with key: ${storageKey}`);
-              localStorage.setItem(
-                storageKey,
-                JSON.stringify(tokenData)
-              );
-            } 
-            // For newer format with separated user_info and token_info
-            else if (tokenData.token_info && tokenData.user_info) {
-              const userId = tokenData.user_info.id;
-              console.log(`Storing Twitter token data for user: ${userId}`);
-              
-              // Store token info
-              localStorage.setItem(
-                `oauth_token_${provider}_${userId}`,
-                JSON.stringify(tokenData.token_info)
-              );
-              
-              // Store user info
-              localStorage.setItem(
-                `oauth_user_${provider}_${userId}`,
-                JSON.stringify(tokenData.user_info)
-              );
-              
-              // Also use the user info to update our UI state
-              console.log('Twitter user info:', tokenData.user_info);
-            }
+          const data = await response.json();
+          console.log('Response data from API:', data);
+
+          if (data.success && data.user_info && data.token_info) {
+            // Handle Twitter's specific response format
+            const userId = data.user_info.id;
+            
+            // Store token info
+            localStorage.setItem(
+              `oauth_token_twitter_${userId}`,
+              JSON.stringify(data.token_info)
+            );
+            
+            // Store user info
+            localStorage.setItem(
+              `oauth_user_twitter_${userId}`,
+              JSON.stringify(data.user_info)
+            );
             
             // Update integrations state
-            console.log('Updating integrations state to reflect connection');
-            setIntegrations(prev => {
-              const updated = prev.map(int => ({
+            setIntegrations(prev => 
+              prev.map(int => ({
                 ...int,
                 isConnected: int.name === normalizedProvider ? true : int.isConnected
-              }));
-              console.log('Updated integrations:', updated);
-              return updated;
-            });
+              }))
+            );
             
             // Store token data for display
-            console.log('Updating tokenData state with received tokens');
-            setTokenData(prev => {
-              const updated = {
-                ...prev,
-                [normalizedProvider]: tokenData.token_info || tokenData
-              };
-              console.log('Updated tokenData state:', updated);
-              return updated;
-            });
+            setTokenData(prev => ({
+              ...prev,
+              [normalizedProvider]: data.token_info
+            }));
+
+            // Clean up code verifier
+            localStorage.removeItem('twitter_code_verifier');
             
             toast({
               title: 'Authentication Successful',
@@ -272,11 +251,12 @@ export default function Home() {
               duration: 5000,
               isClosable: true,
             });
-            
-            // Clean up URL and localStorage
-            localStorage.removeItem('oauth_pending_provider');
-            window.history.replaceState({}, document.title, window.location.pathname);
           }
+          
+          // Clean up URL and localStorage
+          localStorage.removeItem('oauth_pending_provider');
+          window.history.replaceState({}, document.title, '/');
+          
         } catch (error) {
           console.error('Error processing OAuth callback:', error);
           toast({
@@ -287,6 +267,8 @@ export default function Home() {
             isClosable: true,
           });
           localStorage.removeItem('oauth_pending_provider');
+          localStorage.removeItem('twitter_code_verifier');
+          window.history.replaceState({}, document.title, '/');
         }
       }
     };
@@ -295,14 +277,21 @@ export default function Home() {
   }, [toast]);
 
   useEffect(() => {
+    // Only run once on mount
+    if (initializeRef.current) return;
+    initializeRef.current = true;
+
     // Check localStorage for tokens on initial load
     const checkStoredTokens = () => {
-      console.log('Checking stored tokens in localStorage');
       const localStorageKeys = Object.keys(localStorage);
-      console.log('Available localStorage keys:', localStorageKeys);
+      
+      // Create a copy of integrations to track changes
+      const updatedIntegrations = [...integrations];
+      const updatedTokenData: Record<string, any> = {};
+      let hasChanges = false;
       
       // Check for each integration
-      integrations.forEach(integration => {
+      integrations.forEach((integration, index) => {
         // Get possible provider names for this integration
         let possibleProviderNames: string[] = [];
         
@@ -314,31 +303,45 @@ export default function Home() {
           possibleProviderNames = [integration.name.toLowerCase()];
         }
         
-        console.log(`Checking for ${integration.name} token with possible provider names:`, possibleProviderNames);
-        
         // Try different possible key patterns for all possible provider names
         let tokenKey = null;
-        let foundProviderName = null;
+        let tokenData = null;
         
         for (const providerName of possibleProviderNames) {
+          // For Gmail/Google, check the simple format first
+          if (integration.name === 'Gmail') {
+            const simpleKey = `oauth_token_${providerName}`;
+            if (localStorageKeys.includes(simpleKey)) {
+              tokenKey = simpleKey;
+              break;
+            }
+          }
+          
+          // For Twitter, check for user-specific format
+          if (integration.name === 'Twitter') {
+            const userSpecificKeys = localStorageKeys.filter(key => 
+              key.startsWith(`oauth_token_${providerName}_`) && 
+              key !== 'twitter_code_verifier'
+            );
+            if (userSpecificKeys.length > 0) {
+              tokenKey = userSpecificKeys[0]; // Use the first user's token if multiple exist
+              break;
+            }
+          }
+          
+          // For other providers or as fallback
           const pattern = `oauth_token_${providerName}_`;
           const foundKey = localStorageKeys.find(key => key.startsWith(pattern));
           if (foundKey) {
             tokenKey = foundKey;
-            foundProviderName = providerName;
-            console.log(`Found token key with pattern ${pattern}:`, tokenKey);
             break;
           }
         }
         
-        console.log(`Final token key found for ${integration.name}:`, tokenKey);
-        
         if (tokenKey) {
           try {
             const rawTokenData = localStorage.getItem(tokenKey);
-            console.log(`Raw token data for ${integration.name} (${foundProviderName}):`, rawTokenData);
-            const tokenData = JSON.parse(localStorage.getItem(tokenKey) || '{}');
-            console.log(`Parsed token data for ${integration.name}:`, tokenData);
+            tokenData = JSON.parse(rawTokenData || '{}');
             
             // Look for token in different possible locations in the structure
             const accessToken = 
@@ -347,13 +350,11 @@ export default function Home() {
               tokenData.token;
             
             if (accessToken) {
-              console.log(`Valid access token found for ${integration.name}`);
-              setIntegrations(prev => 
-                prev.map(int => ({
-                  ...int,
-                  isConnected: int.name === integration.name ? true : int.isConnected
-                }))
-              );
+              // Update integration status
+              if (!updatedIntegrations[index].isConnected) {
+                updatedIntegrations[index].isConnected = true;
+                hasChanges = true;
+              }
               
               // Normalize the token data structure
               const normalizedTokenInfo = {
@@ -363,26 +364,26 @@ export default function Home() {
                 token_type: tokenData.token_info?.token_type || tokenData.token_type || 'Bearer'
               };
               
-              // Store token data for display - use UI integration name
-              setTokenData(prev => ({
-                ...prev,
-                [integration.name]: normalizedTokenInfo
-              }));
-              console.log(`Updated tokenData state for ${integration.name}:`, normalizedTokenInfo);
-            } else {
-              console.log(`No valid access token for ${integration.name} in token data:`, tokenData);
+              // Store token data for display
+              updatedTokenData[integration.name] = normalizedTokenInfo;
             }
           } catch (error) {
             console.error(`Error parsing ${integration.name} token from localStorage:`, error);
           }
-        } else {
-          console.log(`No token found for ${integration.name}`);
         }
       });
+      
+      // Only update state if there were changes
+      if (hasChanges) {
+        setIntegrations(updatedIntegrations);
+      }
+      if (Object.keys(updatedTokenData).length > 0) {
+        setTokenData(prev => ({...prev, ...updatedTokenData}));
+      }
     };
     
     checkStoredTokens();
-  }, [integrations]);
+  }, []); // Empty dependency array since we use ref to ensure single execution
 
   const handleToggleToken = (integrationName: string) => {
     setShowTokens(prev => ({
