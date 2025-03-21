@@ -34,28 +34,44 @@ export default function TwitterOAuthCallback() {
               throw new Error('Failed to exchange code for token');
             }
             
-            const tokenData = await response.json();
+            const data = await response.json();
+            console.log('Twitter OAuth response:', data);
             
-            // Store the token data in localStorage
-            if (tokenData.user_id) {
+            // Check if the response has the new format (success, user_info, token_info)
+            if (data.success && data.user_info && data.token_info) {
+              const userId = data.user_info.id;
+              
+              // Store token info
               localStorage.setItem(
-                `oauth_token_twitter_${tokenData.user_id}`,
-                JSON.stringify(tokenData)
+                `oauth_token_twitter_${userId}`,
+                JSON.stringify(data.token_info)
+              );
+              
+              // Store user info
+              localStorage.setItem(
+                `oauth_user_twitter_${userId}`,
+                JSON.stringify(data.user_info)
+              );
+              
+              console.log('Stored Twitter user and token data for:', userId);
+            } 
+            // Fallback for older response format
+            else if (data.user_id) {
+              localStorage.setItem(
+                `oauth_token_twitter_${data.user_id}`,
+                JSON.stringify(data)
               );
             }
             
             // Store provider identifier for callback handling on home page
             localStorage.setItem('oauth_pending_provider', 'twitter');
             
-            // Navigate to home page with code
-            router.replace({
-              pathname: '/',
-              query: { code, state: 'twitter' }
-            });
+            // Force navigate to the root URL with window.location instead of router.replace
+            window.location.href = '/';
           } catch (error) {
             console.error('Error in token exchange:', error);
-            // Still redirect to home to show error there
-            router.replace('/');
+            // Use window.location for more reliable redirect on error
+            window.location.href = '/?error=token_exchange_failed&state=twitter';
           }
         };
         
@@ -65,17 +81,20 @@ export default function TwitterOAuthCallback() {
         // Store provider identifier for callback handling
         localStorage.setItem('oauth_pending_provider', 'twitter');
         
-        // Redirect to home page with the code and state
-        router.replace({
-          pathname: '/',
-          query: { code, state: 'twitter', error: 'missing_code_verifier' }
-        });
+        // Use window.location for more reliable redirect
+        window.location.href = `/?code=${code}&state=twitter&error=missing_code_verifier`;
       }
     } else {
-      // If no code is present, just go back to the home page
-      router.replace('/');
+      // If no code is present, just go back to the home page using window.location
+      window.location.href = '/';
     }
-  }, [router.query, router]);
+    
+    // Return a cleanup function
+    return () => {
+      console.log('Twitter OAuth callback component unmounting');
+      // Any cleanup can be added here if needed
+    };
+  }, [router.query]);
   
   return (
     <Box height="100vh" width="100%">
@@ -83,6 +102,7 @@ export default function TwitterOAuthCallback() {
         <VStack spacing={6}>
           <Spinner size="xl" color="blue.500" thickness="4px" speed="0.65s" />
           <Text fontSize="xl">Processing Twitter authorization...</Text>
+          <Text fontSize="sm" color="gray.500">You will be redirected automatically...</Text>
         </VStack>
       </Center>
     </Box>

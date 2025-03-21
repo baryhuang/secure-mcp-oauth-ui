@@ -202,31 +202,35 @@ export default function Home() {
           console.log('Token data received from API:', tokenData);
           
           // Store token data
-          if (tokenData.user_id) {
-            const storageKey = `oauth_token_${provider}_${tokenData.user_id}`;
-            console.log(`Storing token data in localStorage with key: ${storageKey}`);
-            localStorage.setItem(
-              storageKey,
-              JSON.stringify(tokenData)
-            );
-            
-            // Get user info
-            const userResponse = await fetch(
-              `${API_BASE_URL}/api/oauth/me/${provider}?user_id=${tokenData.user_id}`
-            );
-            
-            console.log(`User info response status: ${userResponse.status}`);
-            if (userResponse.ok) {
-              const userData = await userResponse.json();
-              console.log('User data received:', userData);
+          if (tokenData.user_id || (tokenData.token_info && tokenData.user_info)) {
+            // For direct token responses (older format)
+            if (tokenData.user_id) {
+              const storageKey = `oauth_token_${provider}_${tokenData.user_id}`;
+              console.log(`Storing token data in localStorage with key: ${storageKey}`);
               localStorage.setItem(
-                `oauth_user_${provider}_${tokenData.user_id}`,
-                JSON.stringify(userData)
+                storageKey,
+                JSON.stringify(tokenData)
               );
-            } else {
-              console.error('Failed to fetch user info');
-              const errorText = await userResponse.text();
-              console.error('User info error details:', errorText);
+            } 
+            // For newer format with separated user_info and token_info
+            else if (tokenData.token_info && tokenData.user_info) {
+              const userId = tokenData.user_info.id;
+              console.log(`Storing Twitter token data for user: ${userId}`);
+              
+              // Store token info
+              localStorage.setItem(
+                `oauth_token_${provider}_${userId}`,
+                JSON.stringify(tokenData.token_info)
+              );
+              
+              // Store user info
+              localStorage.setItem(
+                `oauth_user_${provider}_${userId}`,
+                JSON.stringify(tokenData.user_info)
+              );
+              
+              // Also use the user info to update our UI state
+              console.log('Twitter user info:', tokenData.user_info);
             }
             
             // Update integrations state
@@ -245,7 +249,7 @@ export default function Home() {
             setTokenData(prev => {
               const updated = {
                 ...prev,
-                [normalizedProvider]: tokenData.token_info
+                [normalizedProvider]: tokenData.token_info || tokenData
               };
               console.log('Updated tokenData state:', updated);
               return updated;
@@ -774,6 +778,52 @@ export default function Home() {
                               Type: {tokenData[integration.name].token_type || 'Bearer'}
                             </Text>
                           </Box>
+                          {integration.name === 'Twitter' && (
+                            <Box mt={3} pt={2} borderTop="1px" borderColor={useColorModeValue('gray.100', 'gray.600')}>
+                              {(() => {
+                                // Get Twitter user info from localStorage
+                                const localStorageKeys = Object.keys(localStorage);
+                                const userInfoKey = localStorageKeys.find(key => 
+                                  key.startsWith('oauth_user_twitter_')
+                                );
+                                
+                                if (userInfoKey) {
+                                  try {
+                                    const userInfo = JSON.parse(localStorage.getItem(userInfoKey) || '{}');
+                                    return (
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontSize="xs" fontWeight="medium">Twitter Account:</Text>
+                                        <HStack spacing={2} width="100%">
+                                          {userInfo.avatar_url && (
+                                            <Box overflow="hidden" borderRadius="full" width="24px" height="24px">
+                                              <img 
+                                                src={userInfo.avatar_url} 
+                                                alt={userInfo.username || 'User'} 
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                              />
+                                            </Box>
+                                          )}
+                                          <Box>
+                                            <Text fontSize="xs" fontWeight="medium">@{userInfo.username || 'Unknown'}</Text>
+                                            {userInfo.profile_url && (
+                                              <Text fontSize="2xs" color="blue.400">
+                                                <a href={userInfo.profile_url} target="_blank" rel="noopener noreferrer">
+                                                  View Profile
+                                                </a>
+                                              </Text>
+                                            )}
+                                          </Box>
+                                        </HStack>
+                                      </VStack>
+                                    );
+                                  } catch (e) {
+                                    return null;
+                                  }
+                                }
+                                return null;
+                              })()}
+                            </Box>
+                          )}
                         </VStack>
                       ) : (
                         <VStack spacing={4} h="100%" justify="center" align="center">
