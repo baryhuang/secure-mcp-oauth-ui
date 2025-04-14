@@ -202,20 +202,21 @@ export default function Home() {
           }
           
           const data = await response.json();
+          console.log('OAuth callback response:', data);
 
+          // Handle the new response format (with success, user_info, token_info)
           if (data.success && data.user_info && data.token_info) {
-            // Handle Twitter's specific response format
             const userId = data.user_info.id;
             
-            // Store token info
+            // Store token info with appropriate key based on provider
             localStorage.setItem(
-              `oauth_token_twitter_${userId}`,
+              `oauth_token_${provider.toLowerCase()}_${userId}`,
               JSON.stringify(data.token_info)
             );
             
             // Store user info
             localStorage.setItem(
-              `oauth_user_twitter_${userId}`,
+              `oauth_user_${provider.toLowerCase()}_${userId}`,
               JSON.stringify(data.user_info)
             );
             
@@ -242,24 +243,59 @@ export default function Home() {
                 return updated;
               });
             });
-
-            // Clean up code verifier
-            localStorage.removeItem('twitter_code_verifier');
+          } 
+          // Legacy format with direct token information
+          else if (data.access_token) {
+            // For legacy format, we don't have a user ID, so use a default
+            const userId = data.user_id || 'default';
             
-            toast({
-              title: 'Authentication Successful',
-              description: `Connected to ${normalizedProvider} successfully`,
-              status: 'success',
-              duration: 5000,
-              isClosable: true,
+            // Store token info
+            localStorage.setItem(
+              `oauth_token_${provider.toLowerCase()}_${userId}`,
+              JSON.stringify(data)
+            );
+            
+            // Update integrations state
+            await new Promise<void>(resolve => {
+              setIntegrations(prev => {
+                const updated = prev.map(int => ({
+                  ...int,
+                  isConnected: int.name === normalizedProvider ? true : int.isConnected
+                }));
+                resolve();
+                return updated;
+              });
             });
-
-            // Clean up URL and localStorage after successful data saving
-            localStorage.removeItem('oauth_pending_provider');
-            window.location.href = '/'; // Use window.location.href for a full page redirect
+            
+            // Store token data for display
+            await new Promise<void>(resolve => {
+              setTokenData(prev => {
+                const updated = {
+                  ...prev,
+                  [normalizedProvider]: data
+                };
+                resolve();
+                return updated;
+              });
+            });
           } else {
             throw new Error('Invalid response format from server');
           }
+
+          // Clean up code verifier
+          localStorage.removeItem('twitter_code_verifier');
+          
+          toast({
+            title: 'Authentication Successful',
+            description: `Connected to ${normalizedProvider} successfully`,
+            status: 'success',
+            duration: 5000,
+            isClosable: true,
+          });
+
+          // Clean up URL and localStorage after successful data saving
+          localStorage.removeItem('oauth_pending_provider');
+          window.location.href = '/'; // Use window.location.href for a full page redirect
         } catch (error) {
           console.error('Error processing OAuth callback:', error);
           toast({
