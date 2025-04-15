@@ -8,6 +8,9 @@ const OAUTH_CONFIG = {
   },
   twitter: {
     clientId: process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || 'dHVJeVFEYm56a2dOYzhFN211aUM6MTpjaQ'
+  },
+  zoom: {
+    clientId: process.env.NEXT_PUBLIC_ZOOM_CLIENT_ID || '1zz2ioOPQLWLQcXcaGdVg'
   }
 };
 
@@ -126,6 +129,8 @@ const getRedirectUri = (provider: string): string => {
     return `http://localhost:5173/oauth_callback/google`;
   } else if (provider === 'twitter') {
     return `http://localhost:5173/oauth_callback/twitter`;
+  } else if (provider === 'zoom') {
+    return `http://localhost:5173/oauth_callback/zoom`;
   } else {
     return `http://localhost:5173/oauth_callback/${provider}`;
   }
@@ -204,4 +209,19 @@ export const authorizeTwitter = async (): Promise<void> => {
   
   // Redirect to Twitter authorization URL
   window.location.href = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}&scope=${encodedScope}&state=twitter&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+};
+
+/**
+ * Initiates Zoom OAuth flow using the direct authorization URL
+ */
+export const authorizeZoom = (): void => {
+  const clientId = OAUTH_CONFIG.zoom.clientId;
+  const redirectUri = getRedirectUri('zoom');
+  const encodedRedirectUri = encodeURIComponent(redirectUri);
+  
+  // Store provider name for callback handling
+  localStorage.setItem('oauth_pending_provider', 'zoom');
+  
+  // Redirect to Zoom authorization URL
+  window.location.href = `https://zoom.us/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}`;
 }; 

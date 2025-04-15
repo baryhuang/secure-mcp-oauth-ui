@@ -36,7 +36,7 @@ import {
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
 import NextLink from 'next/link';
-import { authorizeGmail, authorizeTwitter, API_BASE_URL } from '../lib/api';
+import { authorizeGmail, authorizeTwitter, authorizeZoom, API_BASE_URL } from '../lib/api';
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -134,6 +134,12 @@ export default function Home() {
       description: 'Connect to access your Twitter account',
       scope: 'tweet.read users.read',
     },
+    {
+      name: 'Zoom',
+      isConnected: false,
+      description: 'Connect to access your Zoom account information',
+      scope: 'user:read',
+    },
   ]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [tokenData, setTokenData] = useState<Record<string, any>>({});
@@ -166,6 +172,9 @@ export default function Home() {
             } else if (path.includes('/oauth_callback/twitter')) {
               provider = 'twitter';
               normalizedProvider = 'Twitter';
+            } else if (path.includes('/oauth_callback/zoom')) {
+              provider = 'zoom';
+              normalizedProvider = 'Zoom';
             }
           }
           // Fallback to state parameter or localStorage
@@ -175,6 +184,9 @@ export default function Home() {
           } else if (urlParams.get('state') === 'twitter' || localStorage.getItem('oauth_pending_provider') === 'twitter') {
             provider = 'twitter';
             normalizedProvider = 'Twitter';
+          } else if (urlParams.get('state') === 'zoom' || localStorage.getItem('oauth_pending_provider') === 'zoom') {
+            provider = 'zoom';
+            normalizedProvider = 'Zoom';
           }
           
           // For Twitter, include the code_verifier in the request
@@ -437,6 +449,8 @@ export default function Home() {
       apiProviderName = 'google';
     } else if (integration.name === 'Twitter') {
       apiProviderName = 'twitter';
+    } else if (integration.name === 'Zoom') {
+      apiProviderName = 'zoom';
     } else {
       apiProviderName = integration.name.toLowerCase();
     }
@@ -550,6 +564,67 @@ export default function Home() {
         toast({
           title: 'Disconnected',
           description: 'Successfully disconnected from Twitter',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } else if (integration.name === 'Zoom') {
+      if (!integration.isConnected) {
+        // Initiate Zoom OAuth flow
+        try {
+          toast({
+            title: 'Connecting to Zoom',
+            description: 'Redirecting to Zoom authorization page...',
+            status: 'info',
+            duration: 3000,
+            isClosable: true,
+          });
+          
+          // Call Zoom authorization function
+          authorizeZoom();
+          
+        } catch (error) {
+          console.error('Error initiating Zoom auth:', error);
+          toast({
+            title: 'Connection Failed',
+            description: 'Failed to connect to Zoom',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          localStorage.removeItem('oauth_pending_provider');
+        }
+      } else {
+        // Disconnect Zoom
+        const localStorageKeys = Object.keys(localStorage);
+        const zoomTokenKeys = localStorageKeys.filter(key => 
+          key.startsWith('oauth_token_zoom_') || 
+          key.startsWith('oauth_user_zoom_')
+        );
+        
+        // Remove all Zoom tokens from localStorage
+        console.log('Removing Zoom tokens:', zoomTokenKeys);
+        zoomTokenKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Update state
+        setIntegrations(prev => 
+          prev.map(int => ({
+            ...int,
+            isConnected: int.name === 'Zoom' ? false : int.isConnected
+          }))
+        );
+        
+        // Remove from tokenData
+        setTokenData(prev => {
+          const newTokenData = { ...prev };
+          delete newTokenData['Zoom'];
+          return newTokenData;
+        });
+        
+        toast({
+          title: 'Disconnected',
+          description: 'Successfully disconnected from Zoom',
           status: 'info',
           duration: 3000,
           isClosable: true,

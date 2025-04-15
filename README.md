@@ -15,6 +15,8 @@ NEXT_PUBLIC_API_BASE_URL=https://api.secure-mcp-oauth.com
 # OAuth Client IDs (public)
 NEXT_PUBLIC_SKETCHFAB_CLIENT_ID=your_sketchfab_client_id
 NEXT_PUBLIC_GMAIL_CLIENT_ID=your_gmail_client_id
+NEXT_PUBLIC_TWITTER_CLIENT_ID=your_twitter_client_id
+NEXT_PUBLIC_ZOOM_CLIENT_ID=your_zoom_client_id
 ```
 
 ### OAuth Configuration
@@ -27,9 +29,17 @@ When setting up your OAuth providers, configure the following callback URLs:
 2. For Sketchfab:
    - Callback URL: `https://your-domain.com/oauth_callback/sketchfab`
 
+3. For Twitter:
+   - Callback URL: `https://your-domain.com/oauth_callback/twitter`
+
+4. For Zoom:
+   - Callback URL: `https://your-domain.com/oauth_callback/zoom`
+
 For local development, you can use:
 - `http://localhost:3000/oauth_callback/google`
 - `http://localhost:3000/oauth_callback/sketchfab`
+- `http://localhost:3000/oauth_callback/twitter`
+- `http://localhost:3000/oauth_callback/zoom`
 
 ### Backend Configuration
 
@@ -55,6 +65,16 @@ The backend server requires OAuth client secrets to be securely stored in its en
      SKETCHFAB_CLIENT_ID=your_sketchfab_client_id
      SKETCHFAB_CLIENT_SECRET=your_sketchfab_client_secret
      SKETCHFAB_REDIRECT_URI=https://your-domain.com/oauth_callback/sketchfab
+     ```
+
+3. For Zoom:
+   - Create an OAuth app in the Zoom App Marketplace
+   - Set OAuth scopes (at minimum `user:read`) 
+   - Store the client secret on the backend server with:
+     ```
+     ZOOM_CLIENT_ID=your_zoom_client_id
+     ZOOM_CLIENT_SECRET=your_zoom_client_secret
+     ZOOM_REDIRECT_URI=https://your-domain.com/oauth_callback/zoom
      ```
 
 ## Getting Started
