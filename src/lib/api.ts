@@ -3,9 +3,6 @@ export { API_BASE_URL };
 
 // OAuth configuration - these should ideally come from environment variables
 const OAUTH_CONFIG = {
-  sketchfab: {
-    clientId: process.env.NEXT_PUBLIC_SKETCHFAB_CLIENT_ID || 'tpZqqaJJn5iFTPc2EBVDP4l62qchGxrTEKzS4yFO'
-  },
   gmail: {
     clientId: process.env.NEXT_PUBLIC_GMAIL_CLIENT_ID || '594074475192-56d8c2dg020cvvtpq6ujp5rkd7urkm60.apps.googleusercontent.com'
   },
@@ -132,17 +129,6 @@ const getRedirectUri = (provider: string): string => {
   } else {
     return `http://localhost:5173/oauth_callback/${provider}`;
   }
-};
-
-/**
- * Initiates Sketchfab OAuth flow using the direct authorization URL
- */
-export const authorizeSketchfab = (): void => {
-  const clientId = OAUTH_CONFIG.sketchfab.clientId;
-  const redirectUri = getRedirectUri('sketchfab');
-  const encodedRedirectUri = encodeURIComponent(redirectUri);
-  
-  window.location.href = `https://sketchfab.com/oauth2/authorize/?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}`;
 };
 
 /**

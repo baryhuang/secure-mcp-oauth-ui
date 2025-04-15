@@ -36,7 +36,7 @@ import {
 import { CheckCircleIcon, WarningIcon, ViewIcon, ViewOffIcon, CopyIcon } from '@chakra-ui/icons';
 import { FiLock, FiRefreshCcw, FiShield } from 'react-icons/fi';
 import NextLink from 'next/link';
-import { authorizeSketchfab, authorizeGmail, authorizeTwitter, API_BASE_URL } from '../lib/api';
+import { authorizeGmail, authorizeTwitter, API_BASE_URL } from '../lib/api';
 
 // Define animations using style objects instead of keyframes
 const fadeInAnimation = {
@@ -134,12 +134,6 @@ export default function Home() {
       description: 'Connect to access your Twitter account',
       scope: 'tweet.read users.read',
     },
-    {
-      name: 'Sketchfab',
-      isConnected: false,
-      description: 'Connect to access your Sketchfab 3D models',
-      scope: 'read',
-    },
   ]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [tokenData, setTokenData] = useState<Record<string, any>>({});
@@ -159,8 +153,8 @@ export default function Home() {
       if (code) {
         try {
           // Determine which provider based on URL path or stored state
-          let provider = 'sketchfab'; // Default provider
-          let normalizedProvider = 'Sketchfab'; // For UI display and mapping
+          let provider = 'google'; // Default provider
+          let normalizedProvider = 'Gmail'; // For UI display and mapping
           
           // Check URL path for provider information
           const path = window.location.pathname;
@@ -169,14 +163,11 @@ export default function Home() {
             if (path.includes('/oauth_callback/google')) {
               provider = 'google';
               normalizedProvider = 'Gmail';
-            } else if (path.includes('/oauth_callback/sketchfab')) {
-              provider = 'sketchfab';
-              normalizedProvider = 'Sketchfab';
             } else if (path.includes('/oauth_callback/twitter')) {
               provider = 'twitter';
               normalizedProvider = 'Twitter';
             }
-          } 
+          }
           // Fallback to state parameter or localStorage
           else if (urlParams.get('state') === 'gmail' || localStorage.getItem('oauth_pending_provider') === 'gmail') {
             provider = 'google';
@@ -336,8 +327,6 @@ export default function Home() {
         
         if (integration.name === 'Gmail') {
           possibleProviderNames = ['google', 'gmail'];
-        } else if (integration.name === 'Sketchfab') {
-          possibleProviderNames = ['sketchfab'];
         } else {
           possibleProviderNames = [integration.name.toLowerCase()];
         }
@@ -443,14 +432,9 @@ export default function Home() {
   };
 
   const handleConnect = async (integration: Integration) => {
-    console.log(`handleConnect called for ${integration.name}, current status: ${integration.isConnected}`);
-    
-    // Get the correct API provider name based on UI integration name
     let apiProviderName: string;
     if (integration.name === 'Gmail') {
       apiProviderName = 'google';
-    } else if (integration.name === 'Sketchfab') {
-      apiProviderName = 'sketchfab';
     } else if (integration.name === 'Twitter') {
       apiProviderName = 'twitter';
     } else {
@@ -459,68 +443,7 @@ export default function Home() {
     
     console.log(`Using API provider name: ${apiProviderName} for UI integration: ${integration.name}`);
     
-    if (integration.name === 'Sketchfab') {
-      if (!integration.isConnected) {
-        // Initiate Sketchfab OAuth flow directly
-        try {
-          toast({
-            title: 'Connecting to Sketchfab',
-            description: 'Redirecting to Sketchfab authorization page...',
-            status: 'info',
-            duration: 3000,
-            isClosable: true,
-          });
-          
-          // Directly call the Sketchfab authorization function
-          authorizeSketchfab();
-          
-        } catch (error) {
-          console.error('Error initiating Sketchfab auth:', error);
-          toast({
-            title: 'Connection Failed',
-            description: 'Failed to connect to Sketchfab',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
-        }
-      } else {
-        // Disconnect Sketchfab
-        const localStorageKeys = Object.keys(localStorage);
-        const sketchfabTokenKeys = localStorageKeys.filter(key => 
-          key.startsWith('oauth_token_sketchfab_') || 
-          key.startsWith('oauth_user_sketchfab_') || 
-          key === 'sketchfab_direct_auth_response'
-        );
-        
-        // Remove all Sketchfab tokens from localStorage
-        console.log('Removing Sketchfab tokens:', sketchfabTokenKeys);
-        sketchfabTokenKeys.forEach(key => localStorage.removeItem(key));
-        
-        // Update state
-        setIntegrations(prev => 
-          prev.map(int => ({
-            ...int,
-            isConnected: int.name === 'Sketchfab' ? false : int.isConnected
-          }))
-        );
-        
-        // Remove from tokenData
-        setTokenData(prev => {
-          const newTokenData = { ...prev };
-          delete newTokenData['Sketchfab'];
-          return newTokenData;
-        });
-        
-        toast({
-          title: 'Disconnected',
-          description: 'Successfully disconnected from Sketchfab',
-          status: 'info',
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    } else if (integration.name === 'Gmail') {
+    if (integration.name === 'Gmail') {
       if (!integration.isConnected) {
         // Initiate Gmail OAuth flow
         try {
